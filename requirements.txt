@@ -1,0 +1,9 @@
+﻿fastapi
+uvicorn[standard]
+python-multipart
+ezdxf
+pydantic
+python-docx
+reportlab
+numpy
+shapely
