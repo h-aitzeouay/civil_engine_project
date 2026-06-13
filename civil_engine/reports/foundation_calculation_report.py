@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any
+from civil_engine.engine.load_takedown import compute_load_takedown
 
 
 def fmt(value: Any, ndigits: int = 2) -> str:
@@ -94,9 +95,43 @@ def build_foundation_calculation_report(
     Elle ne remplace pas la note signée par l'ingénieur.
     Elle structure les résultats de prédimensionnement.
     """
+    # Descente de charges (recalculée avec les hypothèses du dossier)
+    try:
+        load_report = compute_load_takedown(
+            model=model,
+            g_floor_kN_m2=float(hypotheses.get("g_floor_kN_m2", 5.0)),
+            q_floor_kN_m2=float(hypotheses.get("q_floor_kN_m2", 1.5)),
+            g_terrace_kN_m2=float(hypotheses.get("g_terrace_kN_m2", 6.0)),
+            q_terrace_kN_m2=float(hypotheses.get("q_terrace_kN_m2", 1.0)),
+            gamma_g=float(hypotheses.get("gamma_g", 1.35)),
+            gamma_q=float(hypotheses.get("gamma_q", 1.5)),
+        )
+    except Exception:
+        load_report = {"foundation_columns": [], "totals": {}, "hypotheses": {}}
+
+    # Lien poteau -> semelle (depuis la strategie)
+    column_to_foundation = {}
+    for f in strategy_report.get("final_foundations", []):
+        for col in f.get("columns", []):
+            column_to_foundation[col] = f.get("id")
+
+    load_takedown_by_footing = []
+    for fc in load_report.get("foundation_columns", []):
+        cid = fc.get("column_id")
+        load_takedown_by_footing.append({
+            "column_id": cid,
+            "foundation_id": column_to_foundation.get(cid, "-"),
+            "levels_supported": fc.get("levels_supported", []),
+            "sum_Gk_kN": fc.get("sum_Gk_kN"),
+            "sum_Qk_kN": fc.get("sum_Qk_kN"),
+            "N_ELS_kN": fc.get("sum_N_ELS_kN"),
+            "N_ELU_kN": fc.get("sum_N_ELU_kN"),
+            "combination_elu": load_report.get("hypotheses", {}).get("elu_combination", "1.35G + 1.5Q"),
+        })
+
     return {
         "status": "OK",
-        "method": "foundation_calculation_report_v0_29",
+        "method": "foundation_calculation_report_v0_30",
         "title": "NOTE DE CALCUL FONDATIONS - PREDIMENSIONNEMENT",
         "project": {
             "name": hypotheses.get("project_name", "INGENIERIE.COM - Projet fondations"),
@@ -104,6 +139,11 @@ def build_foundation_calculation_report(
             "unit_system": "SI",
         },
         "hypotheses": hypotheses,
+        "load_takedown": {
+            "by_footing": load_takedown_by_footing,
+            "totals": load_report.get("totals", {}),
+            "elu_combination": load_report.get("hypotheses", {}).get("elu_combination", "1.35G + 1.5Q"),
+        },
         "strategy_summary": summarize_strategy(strategy_report),
         "reinforcement_summary": summarize_reinforcement(reinforcement_final_report),
         "punching_summary": summarize_punching(punching_final_report),
@@ -209,9 +249,47 @@ def export_calculation_report_md(
     ))
     lines.append("")
 
+    # --- Section descente de charges par semelle ---
+    lt = report.get("load_takedown", {})
+    lt_rows = []
+    for r in lt.get("by_footing", []):
+        lt_rows.append([
+            r.get("foundation_id", "-"),
+            r.get("column_id", "-"),
+            ",".join(r.get("levels_supported", [])) or "-",
+            fmt(r.get("sum_Gk_kN")),
+            fmt(r.get("sum_Qk_kN")),
+            fmt(r.get("N_ELS_kN")),
+            fmt(r.get("N_ELU_kN")),
+            r.get("combination_elu", "-"),
+        ])
+
+    lines.append("## 4. Descente de charges par semelle")
+    lines.append("")
+    lines.append(f"- Combinaison ELU appliquée : **{lt.get('elu_combination', '1.35G + 1.5Q')}**")
+    lines.append("- Combinaison ELS : G + Q")
+    lines.append("- N_ELS = Gk + Qk (cumul de tous les niveaux portés)")
+    lines.append("- Les surcharges locales (calque CHARGE-Q) sont incluses dans Qk le cas échéant.")
+    lines.append("")
+    if lt_rows:
+        lines.append(markdown_table(
+            ["Semelle", "Poteau", "Niveaux portés", "ΣGk (kN)", "ΣQk (kN)", "N_ELS (kN)", "N_ELU (kN)", "Comb. ELU"],
+            lt_rows,
+        ))
+    else:
+        lines.append("_Descente de charges non disponible pour ce dossier._")
+    lines.append("")
+    tot = lt.get("totals", {})
+    if tot:
+        lines.append(f"**Totaux projet** — ΣGk : {fmt(tot.get('total_Gk_kN'))} kN | "
+                     f"ΣQk : {fmt(tot.get('total_Qk_kN'))} kN | "
+                     f"N_ELS : {fmt(tot.get('total_N_ELS_kN'))} kN | "
+                     f"N_ELU : {fmt(tot.get('total_N_ELU_kN'))} kN")
+        lines.append("")
+
     rs = report.get("reinforcement_summary", {})
 
-    lines.append("## 4. Vérification du ferraillage")
+    lines.append("## 5. Vérification du ferraillage")
     lines.append("")
     lines.append(f"- Statut global : **{rs.get('status', '-')}**")
     lines.append(f"- Fondations vérifiées : {rs.get('foundations_checked', 0)}")
@@ -239,7 +317,7 @@ def export_calculation_report_md(
 
     ps = report.get("punching_summary", {})
 
-    lines.append("## 5. Poinçonnement final")
+    lines.append("## 6. Poinçonnement final")
     lines.append("")
     lines.append(f"- Statut global : **{ps.get('status', '-')}**")
     lines.append(f"- Utilisation maximale : {fmt(ps.get('worst_utilization'), 3)}")
@@ -264,7 +342,7 @@ def export_calculation_report_md(
     ))
     lines.append("")
 
-    lines.append("## 6. Ancrages et recouvrements")
+    lines.append("## 7. Ancrages et recouvrements")
     lines.append("")
 
     anchorage_rows = []
@@ -288,7 +366,7 @@ def export_calculation_report_md(
     ))
     lines.append("")
 
-    lines.append("## 7. Métré estimatif")
+    lines.append("## 8. Métré estimatif")
     lines.append("")
 
     totals = report.get("boq_summary", {})
@@ -306,7 +384,7 @@ def export_calculation_report_md(
     ))
     lines.append("")
 
-    lines.append("## 8. Réserves et validations obligatoires")
+    lines.append("## 9. Réserves et validations obligatoires")
     lines.append("")
 
     for item in report.get("limitations", []):

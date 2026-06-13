@@ -45,6 +45,27 @@ def normalize_level_name(raw_name: str) -> str:
     return name
 
 
+def parse_charge_value(text: str) -> float | None:
+    """
+    Extrait une valeur de surcharge depuis un texte de zone CHARGE-Q.
+    Accepte par ex. "2.5", "2,5 kN/m2", "Q=3.0", "+ 1.5 kN/m²".
+    Retourne la valeur en kN/m2, ou None si illisible.
+    """
+    if text is None:
+        return None
+    cleaned = text.replace(",", ".")
+    matches = re.findall(r"[-+]?\d*\.?\d+", cleaned)
+    if not matches:
+        return None
+    try:
+        value = float(matches[0])
+    except ValueError:
+        return None
+    if value < 0:
+        return None
+    return round(value, 3)
+
+
 def split_layer(layer_name: str) -> tuple[str | None, str]:
     """
     Sépare un calque du type RDC-POTEAUX.
@@ -153,6 +174,7 @@ def init_level(level_name: str, origin: list[float]) -> dict[str, Any]:
         "walls": [],
         "voids": [],
         "load_zones": [],
+        "load_zone_labels": [],
         "slab_directions": [],
         "stairs": [],
         "layers": set(),
@@ -372,6 +394,25 @@ def read_dxf_model(dxf_path: str | Path) -> dict[str, Any]:
 
             if altitude is not None:
                 level["z_top_m"] = altitude
+
+        elif entity_type in {"TEXT", "MTEXT"} and layer_type == "CHARGE-Q":
+            if entity_type == "TEXT":
+                raw_text = entity.dxf.text
+                ins = entity.dxf.insert
+            else:
+                raw_text = entity.plain_text()
+                ins = entity.dxf.insert
+
+            q_value = parse_charge_value(raw_text)
+            pos_raw = [round(float(ins.x), 4), round(float(ins.y), 4)]
+            pos_global = translate_point(pos_raw, origin)
+
+            if q_value is not None:
+                level["load_zone_labels"].append({
+                    "q_add_kN_m2": q_value,
+                    "position": pos_global,
+                    "raw_text": raw_text,
+                })
 
     # Contrôles finaux
     for level_name, level in levels.items():
