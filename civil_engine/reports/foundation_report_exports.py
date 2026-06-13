@@ -95,7 +95,39 @@ def export_calculation_report_docx(
         row[6].text = fmt(f.get("soil_pressure_ELS_kPa"))
         row[7].text = str(f.get("status", "-"))
 
-    doc.add_heading("4. Vérification du ferraillage", level=1)
+    # --- Descente de charges par semelle ---
+    lt = report.get("load_takedown", {})
+    doc.add_heading("4. Descente de charges par semelle", level=1)
+    doc.add_paragraph(f"Combinaison ELU appliquée : {lt.get('elu_combination', '1.35G + 1.5Q')}")
+    doc.add_paragraph("Combinaison ELS : G + Q. N_ELS = Gk + Qk (cumul de tous les niveaux portés).")
+    doc.add_paragraph("Les surcharges locales (calque CHARGE-Q) sont incluses dans Qk le cas échéant.")
+
+    lt_table = doc.add_table(rows=1, cols=8)
+    lt_table.style = "Table Grid"
+    lt_headers = ["Semelle", "Poteau", "Niveaux", "SGk (kN)", "SQk (kN)", "N_ELS (kN)", "N_ELU (kN)", "Comb. ELU"]
+    for i, header in enumerate(lt_headers):
+        lt_table.rows[0].cells[i].text = header
+    for r in lt.get("by_footing", []):
+        row = lt_table.add_row().cells
+        row[0].text = str(r.get("foundation_id", "-"))
+        row[1].text = str(r.get("column_id", "-"))
+        row[2].text = ",".join(r.get("levels_supported", [])) or "-"
+        row[3].text = fmt(r.get("sum_Gk_kN"))
+        row[4].text = fmt(r.get("sum_Qk_kN"))
+        row[5].text = fmt(r.get("N_ELS_kN"))
+        row[6].text = fmt(r.get("N_ELU_kN"))
+        row[7].text = str(r.get("combination_elu", "-"))
+
+    tot = lt.get("totals", {})
+    if tot:
+        doc.add_paragraph(
+            f"Totaux projet — SGk : {fmt(tot.get('total_Gk_kN'))} kN | "
+            f"SQk : {fmt(tot.get('total_Qk_kN'))} kN | "
+            f"N_ELS : {fmt(tot.get('total_N_ELS_kN'))} kN | "
+            f"N_ELU : {fmt(tot.get('total_N_ELU_kN'))} kN"
+        )
+
+    doc.add_heading("5. Vérification du ferraillage", level=1)
 
     reinf_summary = report.get("reinforcement_summary", {})
     doc.add_paragraph(f"Statut global : {reinf_summary.get('status', '-')}")
@@ -119,7 +151,7 @@ def export_calculation_report_docx(
         row[2].text = fmt(c.get("rho_l_real_for_punching"), 5)
         row[3].text = str(c.get("status", "-"))
 
-    doc.add_heading("5. Poinçonnement final", level=1)
+    doc.add_heading("6. Poinçonnement final", level=1)
 
     punching_summary = report.get("punching_summary", {})
     doc.add_paragraph(f"Statut global : {punching_summary.get('status', '-')}")
@@ -142,7 +174,7 @@ def export_calculation_report_docx(
         row[3].text = fmt(c.get("worst_utilization"), 3)
         row[4].text = str(c.get("status", "-"))
 
-    doc.add_heading("6. Ancrages et recouvrements", level=1)
+    doc.add_heading("7. Ancrages et recouvrements", level=1)
 
     table = doc.add_table(rows=1, cols=7)
     table.style = "Table Grid"
@@ -165,7 +197,7 @@ def export_calculation_report_docx(
         row[5].text = fmt(anchorage.get("hook_leg_m"))
         row[6].text = str(anchorage.get("recommended_shape", "-"))
 
-    doc.add_heading("7. Métré estimatif", level=1)
+    doc.add_heading("8. Métré estimatif", level=1)
 
     totals = report.get("boq_summary", {})
 
@@ -188,7 +220,7 @@ def export_calculation_report_docx(
         row[0].text = key
         row[1].text = value
 
-    doc.add_heading("8. Réserves et validations obligatoires", level=1)
+    doc.add_heading("9. Réserves et validations obligatoires", level=1)
 
     for item in report.get("limitations", []):
         doc.add_paragraph(f"- {item}")
@@ -305,7 +337,36 @@ def export_calculation_report_pdf(
         foundation_rows,
     )
 
-    h2("3. Ferraillage")
+    # --- Descente de charges par semelle ---
+    lt = report.get("load_takedown", {})
+    h2("3. Descente de charges par semelle")
+    p(f"Combinaison ELU appliquee : {lt.get('elu_combination', '1.35G + 1.5Q')}")
+    p("Combinaison ELS : G + Q. N_ELS = Gk + Qk (cumul des niveaux portes).")
+    p("Surcharges locales (calque CHARGE-Q) incluses dans Qk le cas echeant.")
+    lt_rows = []
+    for r in lt.get("by_footing", []):
+        lt_rows.append([
+            r.get("foundation_id", "-"),
+            r.get("column_id", "-"),
+            ",".join(r.get("levels_supported", [])) or "-",
+            fmt(r.get("sum_Gk_kN")),
+            fmt(r.get("sum_Qk_kN")),
+            fmt(r.get("N_ELS_kN")),
+            fmt(r.get("N_ELU_kN")),
+            r.get("combination_elu", "-"),
+        ])
+    small_table(
+        ["Semelle", "Poteau", "Niveaux", "SGk", "SQk", "N_ELS", "N_ELU", "Comb."],
+        lt_rows,
+    )
+    tot = lt.get("totals", {})
+    if tot:
+        p(f"Totaux projet — SGk: {fmt(tot.get('total_Gk_kN'))} kN | "
+          f"SQk: {fmt(tot.get('total_Qk_kN'))} kN | "
+          f"N_ELS: {fmt(tot.get('total_N_ELS_kN'))} kN | "
+          f"N_ELU: {fmt(tot.get('total_N_ELU_kN'))} kN")
+
+    h2("4. Ferraillage")
 
     reinf_summary = report.get("reinforcement_summary", {})
     p(f"Statut global : {reinf_summary.get('status', '-')}")
@@ -327,7 +388,7 @@ def export_calculation_report_pdf(
         reinf_rows,
     )
 
-    h2("4. Poinçonnement final")
+    h2("5. Poinçonnement final")
 
     punching_summary = report.get("punching_summary", {})
     p(f"Statut global : {punching_summary.get('status', '-')}")
@@ -352,7 +413,7 @@ def export_calculation_report_pdf(
 
     story.append(PageBreak())
 
-    h2("5. Ancrages et recouvrements")
+    h2("6. Ancrages et recouvrements")
 
     anchorage_rows = []
 
@@ -375,7 +436,7 @@ def export_calculation_report_pdf(
         anchorage_rows,
     )
 
-    h2("6. Métré estimatif")
+    h2("7. Métré estimatif")
 
     totals = report.get("boq_summary", {})
 
@@ -391,7 +452,7 @@ def export_calculation_report_pdf(
         ],
     )
 
-    h2("7. Réserves et validations obligatoires")
+    h2("8. Réserves et validations obligatoires")
 
     for item in report.get("limitations", []):
         p(f"- {item}")
