@@ -356,7 +356,7 @@ def export_calculation_report_pdf(
             r.get("combination_elu", "-"),
         ])
     small_table(
-        ["Semelle", "Poteau", "Niveaux", "SGk", "SQk", "N_ELS", "N_ELU", "Comb."],
+        ["Semelle", "Poteau", "Niveaux", "SGk (kN)", "SQk (kN)", "N_ELS (kN)", "N_ELU (kN)", "Comb. ELU"],
         lt_rows,
     )
     tot = lt.get("totals", {})
