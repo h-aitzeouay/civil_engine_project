@@ -1265,6 +1265,10 @@ async def execution_foundation_dxf(
     phi_main_mm: float = Form(12.0),
     starter_diameter_mm: float = Form(14.0),
     stirrup_diameter_mm: float = Form(8.0),
+    project_name: str = Form("INGENIERIE.COM - Projet fondations"),
+    project_number: str = Form(""),
+    plan_date: str = Form(""),
+    scale_label: str = Form("1/50"),
 ):
     """
     Genere le plan final d'execution fondations :
@@ -1314,6 +1318,10 @@ async def execution_foundation_dxf(
             anchorage_report=anchorage_report,
             output_path=output_path,
             starter_diameter_mm=starter_diameter_mm,
+            project_name=project_name,
+            project_number=project_number,
+            plan_date=plan_date,
+            scale_label=scale_label,
         )
 
         return FileResponse(

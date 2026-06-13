@@ -613,6 +613,9 @@ def draw_sections_panel(
 # GENERATION FINALE
 # =========================================================
 
+from civil_engine.plans.cartouche import insert_cartouche, build_cartouche_values, cartouche_size
+
+
 def generate_execution_foundation_dxf(
     model: dict[str, Any],
     strategy_report: dict[str, Any],
@@ -620,6 +623,10 @@ def generate_execution_foundation_dxf(
     anchorage_report: dict[str, Any],
     output_path: str | Path,
     starter_diameter_mm: float = 14.0,
+    project_name: str = "",
+    project_number: str = "",
+    plan_date: str = "",
+    scale_label: str = "1/50",
 ) -> str:
     output_path = Path(output_path)
 
@@ -695,11 +702,29 @@ def generate_execution_foundation_dxf(
         details_y - 11.20,
     )
 
-    # Cartouche plus bas
-    cartouche_y = details_y - 17.40
+    # Cartouche A3 réel (gabarit INGENIERIE.COM), agrandi pour lisibilité
+    cart_w, cart_h = cartouche_size("m", drawing_scale=50.0)
+    cartouche_y = details_y - 17.40 - cart_h
     cartouche_x = xmin
 
-    draw_cartouche(msp, cartouche_x, cartouche_y)
+    cart_values = build_cartouche_values(
+        project_name=project_name,
+        project_number=project_number,
+        plan_title="Plan d'execution fondations",
+        date_str=plan_date,
+        scale_label=scale_label,
+    )
+    try:
+        insert_cartouche(
+            target_doc=doc,
+            insert_xy=(cartouche_x, cartouche_y),
+            values=cart_values,
+            target_units="m",
+            drawing_scale=50.0,
+        )
+    except Exception:
+        # repli sur l'ancien cartouche simplifié si le gabarit est indisponible
+        draw_cartouche(msp, cartouche_x, cartouche_y)
 
     doc.saveas(output_path)
     return str(output_path)
