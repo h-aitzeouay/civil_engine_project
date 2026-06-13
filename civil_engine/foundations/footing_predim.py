@@ -207,6 +207,12 @@ def predimension_isolated_footings(
     thickness_m: float = 0.35,
     dimension_step_m: float = 0.05,
     property_limit_margin_m: float = 0.05,
+    gamma_concrete_kN_m3: float = 25.0,
+    backfill_kN_m2: float = 0.0,
+    g_floor_kN_m2: float = 5.00,
+    q_floor_kN_m2: float = 1.50,
+    g_terrace_kN_m2: float = 6.00,
+    q_terrace_kN_m2: float = 1.00,
 ) -> dict[str, Any]:
     warnings: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
@@ -224,7 +230,13 @@ def predimension_isolated_footings(
             ],
         }
 
-    load_report = compute_load_takedown(model=model)
+    load_report = compute_load_takedown(
+        model=model,
+        g_floor_kN_m2=g_floor_kN_m2,
+        q_floor_kN_m2=q_floor_kN_m2,
+        g_terrace_kN_m2=g_terrace_kN_m2,
+        q_terrace_kN_m2=q_terrace_kN_m2,
+    )
     foundation_columns_geom = get_foundation_columns(model)
 
     if load_report.get("status") == "ERROR":
@@ -266,7 +278,24 @@ def predimension_isolated_footings(
         n_els = float(item["sum_N_ELS_kN"])
         n_elu = float(item["sum_N_ELU_kN"])
 
-        required_area = n_els / q_allowable_kPa
+        # Pression nette : on retranche le poids propre de la semelle
+        # et le remblai eventuel de la portance admissible.
+        self_weight_kPa = gamma_concrete_kN_m3 * thickness_m + backfill_kN_m2
+        q_net_kPa = q_allowable_kPa - self_weight_kPa
+
+        if q_net_kPa <= 0:
+            errors.append({
+                "code": "SOIL_PRESSURE_TOO_LOW",
+                "column_id": column_id,
+                "message": (
+                    f"Portance {q_allowable_kPa} kPa insuffisante : poids propre "
+                    f"semelle + remblai ({self_weight_kPa:.1f} kPa) absorbe toute "
+                    f"la capacite du sol."
+                ),
+            })
+            continue
+
+        required_area = n_els / q_net_kPa
 
         side = math.sqrt(required_area)
         side = max(side, min_side_m)
@@ -391,11 +420,17 @@ def predimension_isolated_footings(
         "method": "isolated_and_eccentric_footing_preliminary_v0_10",
         "hypotheses": {
             "q_allowable_kPa": q_allowable_kPa,
+            "gamma_concrete_kN_m3": gamma_concrete_kN_m3,
+            "backfill_kN_m2": backfill_kN_m2,
+            "g_floor_kN_m2": g_floor_kN_m2,
+            "q_floor_kN_m2": q_floor_kN_m2,
+            "g_terrace_kN_m2": g_terrace_kN_m2,
+            "q_terrace_kN_m2": q_terrace_kN_m2,
             "min_side_m": min_side_m,
             "thickness_m": thickness_m,
             "dimension_step_m": dimension_step_m,
             "property_limit_margin_m": property_limit_margin_m,
-            "bearing_check": "N_ELS / A <= q_allowable",
+            "bearing_check": "N_ELS / A <= (q_allowable - 25*H - backfill)",
             "note": (
                 "Prédimensionnement seulement. Les semelles excentrées nécessitent "
                 "une poutre de redressement PR calculée."

@@ -2012,6 +2012,11 @@ async def project_package_zip(
     critical_zone_m: float = Form(0.60),
     max_spacing_m: float = Form(0.20),
     min_diameter_mm: float = Form(10.0),
+    backfill_kN_m2: float = Form(0.0),
+    g_floor_kN_m2: float = Form(5.0),
+    q_floor_kN_m2: float = Form(1.5),
+    g_terrace_kN_m2: float = Form(6.0),
+    q_terrace_kN_m2: float = Form(1.0),
 ):
     """
     Genere un dossier ZIP complet base sur la configuration corrigee :
@@ -2026,6 +2031,11 @@ async def project_package_zip(
         strategy_report = decide_foundation_strategy(
             model=model,
             q_allowable_kPa=q_allowable_kPa,
+            backfill_kN_m2=backfill_kN_m2,
+            g_floor_kN_m2=g_floor_kN_m2,
+            q_floor_kN_m2=q_floor_kN_m2,
+            g_terrace_kN_m2=g_terrace_kN_m2,
+            q_terrace_kN_m2=q_terrace_kN_m2,
         )
 
         strategy_report = fix_support_geometry_non_destructive(
@@ -2463,6 +2473,11 @@ async def project_dashboard(
     stirrup_diameter_mm: float = Form(8.0),
     max_spacing_m: float = Form(0.20),
     min_diameter_mm: float = Form(10.0),
+    backfill_kN_m2: float = Form(0.0),
+    g_floor_kN_m2: float = Form(5.0),
+    q_floor_kN_m2: float = Form(1.5),
+    g_terrace_kN_m2: float = Form(6.0),
+    q_terrace_kN_m2: float = Form(1.0),
 ) -> JSONResponse:
     """
     Tableau de bord global du projet fondations.
@@ -2478,6 +2493,11 @@ async def project_dashboard(
             strategy_report = decide_foundation_strategy(
                 model=model,
                 q_allowable_kPa=q_allowable_kPa,
+                backfill_kN_m2=backfill_kN_m2,
+                g_floor_kN_m2=g_floor_kN_m2,
+                q_floor_kN_m2=q_floor_kN_m2,
+                g_terrace_kN_m2=g_terrace_kN_m2,
+                q_terrace_kN_m2=q_terrace_kN_m2,
             )
 
             strategy_report = fix_support_geometry_non_destructive(

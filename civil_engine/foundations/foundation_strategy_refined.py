@@ -447,6 +447,11 @@ def design_group_final(
 def decide_foundation_strategy(
     model: dict[str, Any],
     q_allowable_kPa: float = 200.0,
+    backfill_kN_m2: float = 0.0,
+    g_floor_kN_m2: float = 5.00,
+    q_floor_kN_m2: float = 1.50,
+    g_terrace_kN_m2: float = 6.00,
+    q_terrace_kN_m2: float = 1.00,
 ) -> dict[str, Any]:
     isolated_report = predimension_isolated_footings(
         model=model,
@@ -455,6 +460,11 @@ def decide_foundation_strategy(
         thickness_m=0.35,
         dimension_step_m=0.05,
         property_limit_margin_m=0.05,
+        backfill_kN_m2=backfill_kN_m2,
+        g_floor_kN_m2=g_floor_kN_m2,
+        q_floor_kN_m2=q_floor_kN_m2,
+        g_terrace_kN_m2=g_terrace_kN_m2,
+        q_terrace_kN_m2=q_terrace_kN_m2,
     )
 
     if isolated_report.get("status") == "ERROR":
