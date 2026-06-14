@@ -42,9 +42,13 @@ def lineweight_for_layer(name: str) -> int | None:
     if "CADRES" in n:
         return LW_FIN
 
-    # Hachures (avant les details pour ne pas etre capte par "DETAIL")
-    if "HACHURE" in n:
+    # Hachures et sol (avant les details pour ne pas etre capte par "DETAIL")
+    if "HACHURE" in n or n == "SOL":
         return LW_HACHURE
+
+    # Beton de proprete : beton maigre, trait fin (avant le contour beton).
+    if "PROPRETE" in n:
+        return LW_FIN
 
     # Annotations, details, tableaux, cartouche
     if any(k in n for k in (
@@ -59,7 +63,8 @@ def lineweight_for_layer(name: str) -> int | None:
     # Contours
     if "EMPRISE" in n:
         return LW_EMPRISE
-    if any(k in n for k in ("SEMELLE", "MASSIF", "VOILE", "POTEAU")):
+    if any(k in n for k in ("SEMELLE", "MASSIF", "VOILE", "POTEAU",
+                            "BETON", "COUPE", "RADIER")):
         return LW_BETON
     if n in ("SI", "SE", "SC", "RL"):
         return LW_BETON
