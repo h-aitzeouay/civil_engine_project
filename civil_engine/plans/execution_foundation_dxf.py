@@ -19,6 +19,12 @@ from civil_engine.plans.reinforcement_dxf import (
     draw_final_foundations,
     draw_reinforcement,
     table_position,
+    draw_bar_lines_x,
+    draw_bar_lines_y,
+    choose_label_box,
+    add_label_lines,
+    add_leader_to_label,
+    pad_box,
 )
 
 
@@ -619,14 +625,17 @@ def draw_sections_panel(
 from civil_engine.plans.cartouche import insert_cartouche, build_cartouche_values, cartouche_size
 
 
-def draw_strip_footings_on_plan(msp, strip_design, interference=None):
+def draw_strip_footings_on_plan(msp, strip_design, interference=None, occupied=None):
     """
-    Dessine les semelles filantes, voiles et massifs sur le plan d'execution,
-    sur les calques dedies (SEMELLE_FILANTE, VOILE_FONDATION, MASSIF_FILANTE).
-    strip_design = strip_footings_design (du pipeline filante).
+    Dessine les semelles filantes, voiles, massifs ET leur ferraillage sur le
+    plan d'execution, avec annotation a leader harmonisee (meme style que les
+    semelles isolees). occupied = liste des zones deja occupees par les
+    annotations (anti-chevauchement).
     """
     if not strip_design:
         return
+    if occupied is None:
+        occupied = []
 
     def _rect(b, layer):
         msp.add_lwpolyline(
@@ -634,18 +643,46 @@ def draw_strip_footings_on_plan(msp, strip_design, interference=None):
              (b["xmax"], b["ymax"]), (b["xmin"], b["ymax"])],
             close=True, dxfattribs={"layer": layer})
 
-    # Semelles filantes + voiles
+    cover = 0.06
+
     for sf in strip_design.get("strip_footings", []):
-        _rect(sf["bbox"], "SEMELLE_FILANTE")
+        bb = sf["bbox"]
+        _rect(bb, "SEMELLE_FILANTE")
         wb = sf.get("wall_bbox")
         if wb:
             _rect(wb, "VOILE_FONDATION")
-        bb = sf["bbox"]
-        cx = 0.5 * (bb["xmin"] + bb["xmax"])
-        cy = 0.5 * (bb["ymin"] + bb["ymax"])
-        label = f"{sf['id']} {sf['B_m']:.2f}x{sf['H_m']:.2f}"
-        msp.add_text(label, dxfattribs={"height": 0.14, "layer": "SEMELLE_FILANTE"}
-                     ).set_placement((cx + 0.08, cy))
+
+        xmin, xmax = bb["xmin"], bb["xmax"]
+        ymin, ymax = bb["ymin"], bb["ymax"]
+        axis = sf.get("axis", "H")
+        reinf = sf.get("reinforcement", {})
+        spacing = float(reinf.get("main_spacing_m", 0.20)) or 0.20
+
+        # Ferraillage : transversal (principal) + longitudinal (repartition).
+        # Voile vertical (V) : semelle allongee selon Y.
+        #   - transversal principal = lignes horizontales (sens X)
+        #   - longitudinal repartition = lignes verticales (sens Y)
+        # Voile horizontal (H) : l'inverse.
+        if axis == "V":
+            draw_bar_lines_x(msp, xmin, xmax, ymin, ymax, spacing, "ARM_INF_X", cover)
+            draw_bar_lines_y(msp, xmin, xmax, ymin, ymax, 0.20, "ARM_INF_Y", cover)
+        else:
+            draw_bar_lines_y(msp, xmin, xmax, ymin, ymax, spacing, "ARM_INF_Y", cover)
+            draw_bar_lines_x(msp, xmin, xmax, ymin, ymax, 0.20, "ARM_INF_X", cover)
+
+        # Annotation a leader harmonisee
+        main = reinf.get("main_bottom", "")
+        dist = reinf.get("distribution_bottom", "")
+        label_1 = f"{sf['id']}  {sf['B_m']:.2f}x{sf['H_m']:.2f}"
+        label_2 = f"Princ. {main}"
+        label_3 = f"Repart. {dist}"
+
+        label_box = choose_label_box(
+            bbox=bb, lines=[label_1, label_2, label_3], occupied=occupied,
+            text_height=0.09, line_spacing=0.18)
+        add_label_lines(msp, label_box, [label_1, label_2, label_3], "TEXTES")
+        add_leader_to_label(msp, bb, label_box)
+        occupied.append(pad_box(label_box, 0.08))
 
     # Massifs d'angle (filante <-> filante)
     for m in strip_design.get("massifs", []):
@@ -705,8 +742,8 @@ def generate_execution_foundation_dxf(
     draw_emprise_and_columns(msp, model, strategy_report)
     draw_axes(msp, model)
     draw_final_foundations(msp, strategy_report, occupied)
-    draw_strip_footings_on_plan(msp, strip_design, strip_interference)
     draw_reinforcement(msp, strategy_report, reinforcement_report, occupied)
+    draw_strip_footings_on_plan(msp, strip_design, strip_interference, occupied)
     draw_starter_bars_on_plan(msp, model, starter_diameter_mm)
 
     # Zone tableau à droite
