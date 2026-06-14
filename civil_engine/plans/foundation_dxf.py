@@ -255,5 +255,6 @@ def generate_foundation_predim_dxf(
     add_text(msp, f"Interferences : {summary.get('interferences_count', 0)}", table_x, y - 0.70, 0.16, "ALERTES" if summary.get("interferences_count", 0) else "TABLEAU_SEMELLES")
     add_text(msp, f"q_sol utilise : {footing_report.get('hypotheses', {}).get('q_allowable_kPa', 'NA')} kPa", table_x, y - 1.00, 0.16, "TABLEAU_SEMELLES")
 
-    doc.saveas(output_path)
+    from civil_engine.plans.dxf_finalize import finalize_and_save
+    finalize_and_save(doc, output_path)
     return str(output_path)

@@ -409,6 +409,6 @@ def generate_combined_foundation_dxf(
 
     draw_tables(msp, combined_report)
 
-    doc.saveas(output_path)
-
+    from civil_engine.plans.dxf_finalize import finalize_and_save
+    finalize_and_save(doc, output_path)
     return str(output_path)

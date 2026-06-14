@@ -264,23 +264,68 @@ def generate_project_package_zip(
         json_dir / "00_package_generation_log.json",
     )
 
+    # --- Synthese des statuts (deduite des rapports) ---
+    from datetime import datetime
+
+    project_name = (
+        calculation_report.get("project", {}).get("name")
+        or "INGENIERIE.COM - Projet fondations"
+    )
+    strat_sum = calculation_report.get("strategy_summary", {})
+    reinf_sum = calculation_report.get("reinforcement_summary", {})
+    punch_sum = calculation_report.get("punching_summary", {})
+    boq_tot = boq_report.get("totals", {})
+
+    def _counts(counts: dict) -> str:
+        if not counts:
+            return "-"
+        return ", ".join(f"{k} : {v}" for k, v in counts.items())
+
     readme = work_dir / "README_LIVRABLES.txt"
     readme.write_text(
         "\n".join([
-            "DOSSIER FONDATIONS - INGENIERIE.COM",
+            "====================================================",
+            "  DOSSIER FONDATIONS — INGENIERIE.COM",
+            "====================================================",
             "",
-            "Contenu :",
-            "01_DXF : plans et details graphiques",
-            "02_RAPPORTS : note de calcul MD / DOCX / PDF",
-            "03_METRE : metrage CSV",
-            "04_JSON : rapports de controle et donnees techniques",
+            f"Projet      : {project_name}",
+            f"Généré le   : {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            f"Statut      : {'OK AVEC AVERTISSEMENTS' if errors else 'OK'}",
             "",
-            "Important :",
-            "Ce dossier est issu d'un predimensionnement automatique.",
-            "Validation par ingenieur structure obligatoire avant execution.",
+            "----------------------------------------------------",
+            "SYNTHÈSE TECHNIQUE",
+            "----------------------------------------------------",
+            f"Fondations finales      : {strat_sum.get('foundation_count', '-')}",
+            f"Répartition par type    : {_counts(strat_sum.get('by_type', {}))}",
+            f"Ferraillage (statut)    : {reinf_sum.get('status', '-')}",
+            f"  répartition           : {_counts(reinf_sum.get('by_status', {}))}",
+            f"Poinçonnement (statut)  : {punch_sum.get('status', '-')}",
+            f"  utilisation max       : {punch_sum.get('worst_utilization', '-')}"
+            f" (critique : {punch_sum.get('worst_foundation', '-')})",
+            f"Béton fondations        : {boq_tot.get('concrete_m3', '-')} m3",
+            f"Acier total             : {boq_tot.get('total_steel_kg', '-')} kg",
             "",
+            "----------------------------------------------------",
+            "CONTENU DU DOSSIER",
+            "----------------------------------------------------",
+            "01_DXF      : plans et détails graphiques (cadrés à l'ouverture)",
+            "              01_PLAN_EXECUTION_FONDATIONS.dxf",
+            "              02_COUPES_DETAILLEES_FONDATIONS.dxf",
+            "              03_ANCRAGES_RECOUVREMENTS.dxf",
+            "              04_ATTENTES_POTEAUX.dxf",
+            "              05_FERRAILLAGE_PRELIMINAIRE.dxf",
+            "              06_POINCONNEMENT_FINAL.dxf",
+            "02_RAPPORTS : note de calcul (MD / DOCX / PDF)",
+            "03_METRE    : métré estimatif (CSV)",
+            "04_JSON     : rapports de contrôle et données techniques",
+            "",
+            "----------------------------------------------------",
+            "RÉSERVES",
+            "----------------------------------------------------",
+            "Ce dossier est issu d'un prédimensionnement automatique.",
+            "Validation par ingénieur structure obligatoire avant exécution.",
             "En cas de livrable secondaire manquant, consulter :",
-            "04_JSON/00_package_generation_log.json",
+            "  04_JSON/00_package_generation_log.json",
         ]),
         encoding="utf-8",
     )

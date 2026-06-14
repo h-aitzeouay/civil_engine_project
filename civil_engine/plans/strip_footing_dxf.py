@@ -98,5 +98,6 @@ def generate_strip_footings_dxf(
                   emprise["xmin"], y0, 0.16, "TEXTES")
 
     output_path = str(output_path)
-    doc.saveas(output_path)
+    from civil_engine.plans.dxf_finalize import finalize_and_save
+    finalize_and_save(doc, output_path)
     return output_path

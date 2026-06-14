@@ -16,6 +16,13 @@ def fmt(value: Any, ndigits: int = 2) -> str:
         return "-"
 
 
+def fmt_counts(counts: dict[str, Any]) -> str:
+    """Formate {'SE': 10, 'SI': 2} -> "SE : 10, SI : 2" ; vide -> "-"."""
+    if not counts:
+        return "-"
+    return ", ".join(f"{key} : {value}" for key, value in counts.items())
+
+
 def export_calculation_report_docx(
     report: dict[str, Any],
     output_path: str | Path,
@@ -73,7 +80,7 @@ def export_calculation_report_docx(
 
     strategy_summary = report.get("strategy_summary", {})
     doc.add_paragraph(f"Nombre de fondations finales : {strategy_summary.get('foundation_count', 0)}")
-    doc.add_paragraph(f"Répartition par type : {strategy_summary.get('by_type', {})}")
+    doc.add_paragraph(f"Répartition par type : {fmt_counts(strategy_summary.get('by_type', {}))}")
     doc.add_paragraph(f"Avertissements : {strategy_summary.get('warnings_count', 0)}")
 
     table = doc.add_table(rows=1, cols=8)
@@ -132,7 +139,7 @@ def export_calculation_report_docx(
     reinf_summary = report.get("reinforcement_summary", {})
     doc.add_paragraph(f"Statut global : {reinf_summary.get('status', '-')}")
     doc.add_paragraph(f"Fondations vérifiées : {reinf_summary.get('foundations_checked', 0)}")
-    doc.add_paragraph(f"Répartition : {reinf_summary.get('by_status', {})}")
+    doc.add_paragraph(f"Répartition : {fmt_counts(reinf_summary.get('by_status', {}))}")
     doc.add_paragraph(f"Avertissements : {reinf_summary.get('warnings_count', 0)}")
     doc.add_paragraph(f"Erreurs : {reinf_summary.get('errors_count', 0)}")
 
@@ -315,7 +322,7 @@ def export_calculation_report_pdf(
 
     strategy_summary = report.get("strategy_summary", {})
     p(f"Nombre de fondations finales : {strategy_summary.get('foundation_count', 0)}")
-    p(f"Répartition par type : {strategy_summary.get('by_type', {})}")
+    p(f"Répartition par type : {fmt_counts(strategy_summary.get('by_type', {}))}")
     p(f"Avertissements : {strategy_summary.get('warnings_count', 0)}")
 
     foundation_rows = []
@@ -371,7 +378,7 @@ def export_calculation_report_pdf(
     reinf_summary = report.get("reinforcement_summary", {})
     p(f"Statut global : {reinf_summary.get('status', '-')}")
     p(f"Fondations vérifiées : {reinf_summary.get('foundations_checked', 0)}")
-    p(f"Répartition : {reinf_summary.get('by_status', {})}")
+    p(f"Répartition : {fmt_counts(reinf_summary.get('by_status', {}))}")
 
     reinf_rows = []
 

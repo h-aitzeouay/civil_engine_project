@@ -15,6 +15,16 @@ def fmt(value: Any, ndigits: int = 2) -> str:
     return str(value)
 
 
+def fmt_counts(counts: dict[str, Any]) -> str:
+    """
+    Formate un dictionnaire de comptage en libelle lisible.
+    {'SE': 10, 'SI': 2} -> "SE : 10, SI : 2" ; vide -> "-".
+    """
+    if not counts:
+        return "-"
+    return ", ".join(f"{key} : {value}" for key, value in counts.items())
+
+
 def summarize_strategy(strategy_report: dict[str, Any]) -> dict[str, Any]:
     final_foundations = strategy_report.get("final_foundations", [])
 
@@ -223,7 +233,7 @@ def export_calculation_report_md(
     lines.append("## 3. Stratégie de fondations")
     lines.append("")
     lines.append(f"- Nombre de fondations finales : {ss.get('foundation_count', 0)}")
-    lines.append(f"- Répartition par type : {ss.get('by_type', {})}")
+    lines.append(f"- Répartition par type : {fmt_counts(ss.get('by_type', {}))}")
     lines.append(f"- Avertissements : {ss.get('warnings_count', 0)}")
     lines.append("")
 
@@ -293,7 +303,7 @@ def export_calculation_report_md(
     lines.append("")
     lines.append(f"- Statut global : **{rs.get('status', '-')}**")
     lines.append(f"- Fondations vérifiées : {rs.get('foundations_checked', 0)}")
-    lines.append(f"- Répartition : {rs.get('by_status', {})}")
+    lines.append(f"- Répartition : {fmt_counts(rs.get('by_status', {}))}")
     lines.append(f"- Avertissements : {rs.get('warnings_count', 0)}")
     lines.append(f"- Erreurs : {rs.get('errors_count', 0)}")
     lines.append("")
@@ -322,7 +332,7 @@ def export_calculation_report_md(
     lines.append(f"- Statut global : **{ps.get('status', '-')}**")
     lines.append(f"- Utilisation maximale : {fmt(ps.get('worst_utilization'), 3)}")
     lines.append(f"- Fondation critique : {ps.get('worst_foundation', '-')}")
-    lines.append(f"- Répartition : {ps.get('by_status', {})}")
+    lines.append(f"- Répartition : {fmt_counts(ps.get('by_status', {}))}")
     lines.append("")
 
     punching_rows = []

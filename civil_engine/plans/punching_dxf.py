@@ -690,5 +690,6 @@ def generate_punching_dxf(
     draw_table(msp, strategy_report, punching_report, tx, ty)
     draw_legend(msp, tx, ty - 5.1)
 
-    doc.saveas(output_path)
+    from civil_engine.plans.dxf_finalize import finalize_and_save
+    finalize_and_save(doc, output_path)
     return str(output_path)

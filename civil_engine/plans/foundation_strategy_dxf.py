@@ -788,6 +788,6 @@ def generate_foundation_strategy_dxf(
         y=title_y,
     )
 
-    doc.saveas(output_path)
-
+    from civil_engine.plans.dxf_finalize import finalize_and_save
+    finalize_and_save(doc, output_path)
     return str(output_path)

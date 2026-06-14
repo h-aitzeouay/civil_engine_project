@@ -390,5 +390,6 @@ def generate_anchorage_details_dxf(
     draw_table(msp, anchorage_report, tx, ty)
     draw_shapes(msp, anchorage_report, tx, ty - 6.2)
 
-    doc.saveas(output_path)
+    from civil_engine.plans.dxf_finalize import finalize_and_save
+    finalize_and_save(doc, output_path)
     return str(output_path)

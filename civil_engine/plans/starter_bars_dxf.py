@@ -722,5 +722,6 @@ def generate_starter_bars_dxf(
         critical_zone_m=critical_zone_m,
     )
 
-    doc.saveas(output_path)
+    from civil_engine.plans.dxf_finalize import finalize_and_save
+    finalize_and_save(doc, output_path)
     return str(output_path)
