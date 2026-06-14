@@ -946,11 +946,6 @@ def generate_execution_foundation_dxf(
         wall_thickness_m=strip_wall_thickness_m,
     )
 
-    # Cartouche A3 réel (gabarit INGENIERIE.COM), agrandi pour lisibilité
-    cart_w, cart_h = cartouche_size("m", drawing_scale=50.0)
-    cartouche_y = details_y - 17.40 - cart_h
-    cartouche_x = xmin
-
     cart_values = build_cartouche_values(
         project_name=project_name,
         project_number=project_number,
@@ -958,17 +953,37 @@ def generate_execution_foundation_dxf(
         date_str=plan_date,
         scale_label=scale_label,
     )
+
+    # Planche A3 en presentation (paperspace) : cadre + cartouche au gabarit
+    # reel insere en 1:1 + fenetre cadree sur le plan a l'echelle 1/50.
+    # Le cartouche n'est plus duplique en modelspace (presentation propre).
+    a3_ok = False
     try:
-        insert_cartouche(
-            target_doc=doc,
-            insert_xy=(cartouche_x, cartouche_y),
+        from civil_engine.plans.paperspace_layout import setup_a3_plan_sheet
+        a3_ok = setup_a3_plan_sheet(
+            doc=doc,
+            foundation_bbox=bbox,
             values=cart_values,
-            target_units="m",
-            drawing_scale=50.0,
+            scale_denominator=50.0,
         )
     except Exception:
-        # repli sur l'ancien cartouche simplifié si le gabarit est indisponible
-        draw_cartouche(msp, cartouche_x, cartouche_y)
+        a3_ok = False
+
+    if not a3_ok:
+        # Repli : cartouche insere en modelspace si la planche A3 a echoue.
+        cart_w, cart_h = cartouche_size("m", drawing_scale=50.0)
+        cartouche_y = details_y - 17.40 - cart_h
+        cartouche_x = xmin
+        try:
+            insert_cartouche(
+                target_doc=doc,
+                insert_xy=(cartouche_x, cartouche_y),
+                values=cart_values,
+                target_units="m",
+                drawing_scale=50.0,
+            )
+        except Exception:
+            draw_cartouche(msp, cartouche_x, cartouche_y)
 
     from civil_engine.plans.dxf_finalize import finalize_and_save
     finalize_and_save(doc, output_path)
