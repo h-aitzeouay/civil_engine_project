@@ -26,6 +26,8 @@ from civil_engine.foundations.strip_isolated_interference import (
     IsolatedFootingInput as IntfIsolatedFooting,
     StripFootingInput as IntfStripFooting,
 )
+from civil_engine.plans.strip_footing_dxf import generate_strip_footings_dxf
+from civil_engine.quantities.strip_footing_boq import strip_footings_boq
 from civil_engine.plans.foundation_dxf import generate_foundation_predim_dxf
 from civil_engine.foundations.combined_footings import generate_combined_footings
 from civil_engine.plans.combined_foundation_dxf import generate_combined_foundation_dxf
@@ -441,6 +443,7 @@ async def strip_footings(
                 "wall_load_takedown": wlt,
                 "strip_footings_design": design,
                 "interference_resolution": interference,
+                "boq": strip_footings_boq(design, interference),
             })
 
         except Exception as error:
@@ -452,6 +455,82 @@ async def strip_footings(
                     "detail": str(error),
                 },
             )
+
+
+@app.post("/strip-footings-dxf", response_model=None)
+async def strip_footings_dxf(
+    dxf: UploadFile = File(...),
+    q_allowable_kPa: float = Form(200.0),
+    wall_thickness_m: float = Form(0.20),
+    storey_height_m: float = Form(3.00),
+    g_floor_kN_m2: float = Form(5.00),
+    q_floor_kN_m2: float = Form(1.50),
+    g_terrace_kN_m2: float = Form(6.00),
+    q_terrace_kN_m2: float = Form(1.00),
+    fck_mpa: float = Form(25.0),
+    fyk_mpa: float = Form(500.0),
+    gamma_s: float = Form(1.15),
+    cover_m: float = Form(0.05),
+    phi_main_mm: float = Form(12.0),
+    phi_distribution_mm: float = Form(10.0),
+):
+    """
+    Genere le PLAN DXF des semelles filantes (emprise, voiles, semelles,
+    massifs, annotations) a telecharger.
+    """
+    temp_path = Path(tempfile.mkdtemp())
+    dxf_path = save_uploaded_file(dxf, temp_path)
+
+    try:
+        model = read_dxf_model(dxf_path)
+
+        wlt = compute_wall_load_takedown(
+            model=model, wall_thickness_m=wall_thickness_m, storey_height_m=storey_height_m,
+            g_floor_kN_m2=g_floor_kN_m2, q_floor_kN_m2=q_floor_kN_m2,
+            g_terrace_kN_m2=g_terrace_kN_m2, q_terrace_kN_m2=q_terrace_kN_m2,
+            gamma_g=1.35, gamma_q=1.50)
+
+        walls_data = wlt.get("walls", [])
+        fond = next((l for l in model["levels"] if l["name"] == "FONDATION"),
+                    model["levels"][0] if model["levels"] else None)
+        if fond is None or not fond.get("footprints"):
+            return JSONResponse(status_code=400, content={
+                "status": "ERROR", "message": "Emprise FONDATION introuvable."})
+        emp = fond["footprints"][0]["bbox"]
+        emprise = StripRect(emp["xmin"], emp["ymin"], emp["xmax"], emp["ymax"])
+
+        if not walls_data:
+            # plan vide mais valide (emprise seule)
+            design = {"status": "OK", "emprise": emp, "strip_footings": [], "massifs": []}
+            interference = None
+        else:
+            walls = [StripWallInput(id=w["id"], x1=w["x1"], y1=w["y1"], x2=w["x2"], y2=w["y2"],
+                                    thickness_m=w["thickness_m"], n_sls_kN_per_m=w["n_sls_kN_per_m"],
+                                    n_uls_kN_per_m=w["n_uls_kN_per_m"]) for w in walls_data]
+            design = design_strip_footings_under_walls(
+                walls=walls, emprise=emprise, q_allowable_kPa=q_allowable_kPa,
+                fck_mpa=fck_mpa, fyk_mpa=fyk_mpa, gamma_s=gamma_s, cover_m=cover_m,
+                phi_main_mm=phi_main_mm, phi_distribution_mm=phi_distribution_mm)
+            interference = None  # le dessin des massifs locaux est optionnel ici
+
+        output_path = temp_path / "PLAN_SEMELLES_FILANTES_INGENIERIE.dxf"
+        generate_strip_footings_dxf(
+            strip_result=design, interference_result=interference,
+            output_path=output_path)
+
+        return FileResponse(
+            path=output_path,
+            filename="PLAN_SEMELLES_FILANTES_INGENIERIE.dxf",
+            media_type="application/dxf",
+        )
+
+    except Exception as error:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "ERROR",
+                     "message": "Erreur pendant la generation du plan des semelles filantes.",
+                     "detail": str(error)},
+        )
 
 
 @app.post("/foundation-dxf", response_model=None)
