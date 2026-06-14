@@ -115,13 +115,34 @@ class WallInput:
         return math.hypot(self.x2 - self.x1, self.y2 - self.y1)
 
     def wall_bbox(self) -> Rect:
+        """
+        Emprise du voile. Convention : l'axe dessine est la FACE MITOYENNE
+        (nu exterieur). Le voile s'etend de toute son epaisseur vers
+        l'interieur (indique par interior_sign sur l'axe transversal).
+
+        interior_sign = +1 ou -1 selon le cote interieur ; 0 (defaut) =
+        ancien comportement (axe median, +/- epaisseur/2).
+        """
         axis = self.axis()
-        t2 = 0.5 * self.thickness_m
+        t = self.thickness_m
+        s = getattr(self, "interior_sign", 0)
         if axis == "H":
             y = 0.5 * (self.y1 + self.y2)
-            return Rect(min(self.x1, self.x2), y - t2, max(self.x1, self.x2), y + t2)
+            if s > 0:
+                ylo, yhi = y, y + t
+            elif s < 0:
+                ylo, yhi = y - t, y
+            else:
+                ylo, yhi = y - t / 2.0, y + t / 2.0
+            return Rect(min(self.x1, self.x2), ylo, max(self.x1, self.x2), yhi)
         x = 0.5 * (self.x1 + self.x2)
-        return Rect(x - t2, min(self.y1, self.y2), x + t2, max(self.y1, self.y2))
+        if s > 0:
+            xlo, xhi = x, x + t
+        elif s < 0:
+            xlo, xhi = x - t, x
+        else:
+            xlo, xhi = x - t / 2.0, x + t / 2.0
+        return Rect(xlo, min(self.y1, self.y2), xhi, max(self.y1, self.y2))
 
     def n_uls(self) -> float:
         if self.n_uls_kN_per_m is not None:
@@ -203,6 +224,7 @@ def build_footing_bbox_inside_emprise(wall, B_m, emprise, end_extension_m):
     issues = []
     axis = wall.axis()
     wb = wall.wall_bbox()
+    s = getattr(wall, "interior_sign", 0)
 
     if not emprise.contains_rect(wb):
         issues.append({"severity": "ERROR", "code": "WALL_OUTSIDE_EMPRISE", "wall_id": wall.id,
@@ -211,8 +233,14 @@ def build_footing_bbox_inside_emprise(wall, B_m, emprise, end_extension_m):
     if axis == "H":
         x0 = max(wb.xmin - end_extension_m, emprise.xmin)
         x1 = min(wb.xmax + end_extension_m, emprise.xmax)
-        y_center = wb.cy
-        rect = Rect(x0, y_center - B_m / 2.0, x1, y_center + B_m / 2.0)
+        y_face = 0.5 * (wall.y1 + wall.y2)  # face mitoyenne (axe dessine)
+        if s > 0:
+            rect = Rect(x0, y_face, x1, y_face + B_m)            # vers l'interieur (+y)
+        elif s < 0:
+            rect = Rect(x0, y_face - B_m, x1, y_face)            # vers l'interieur (-y)
+        else:
+            rect = Rect(x0, y_face - B_m / 2.0, x1, y_face + B_m / 2.0)  # ancien centre
+        # securite : recaler dans l'emprise si depassement
         if rect.ymin < emprise.ymin:
             rect = rect.shifted(0.0, emprise.ymin - rect.ymin)
         if rect.ymax > emprise.ymax:
@@ -221,18 +249,25 @@ def build_footing_bbox_inside_emprise(wall, B_m, emprise, end_extension_m):
             issues.append({"severity": "ERROR", "code": "WIDTH_NOT_FITTING_EMPRISE", "wall_id": wall.id,
                            "message": "La largeur requise de semelle ne peut pas entrer dans l'emprise."})
             rect = rect.clipped_inside(emprise)
-        eccentricity = abs(wb.cy - rect.cy)
+        # excentricite = distance entre axe semelle et axe MEDIAN du voile
+        wall_mid_y = wb.cy
+        eccentricity = abs(wall_mid_y - rect.cy)
         if eccentricity <= 0.02:
             side_mode = "CENTERED"
-        elif rect.cy > wb.cy:
+        elif rect.cy > wall_mid_y:
             side_mode = "SHIFTED_INSIDE_POSITIVE_Y"
         else:
             side_mode = "SHIFTED_INSIDE_NEGATIVE_Y"
     else:
         y0 = max(wb.ymin - end_extension_m, emprise.ymin)
         y1 = min(wb.ymax + end_extension_m, emprise.ymax)
-        x_center = wb.cx
-        rect = Rect(x_center - B_m / 2.0, y0, x_center + B_m / 2.0, y1)
+        x_face = 0.5 * (wall.x1 + wall.x2)  # face mitoyenne (axe dessine)
+        if s > 0:
+            rect = Rect(x_face, y0, x_face + B_m, y1)            # vers l'interieur (+x)
+        elif s < 0:
+            rect = Rect(x_face - B_m, y0, x_face, y1)            # vers l'interieur (-x)
+        else:
+            rect = Rect(x_face - B_m / 2.0, y0, x_face + B_m / 2.0, y1)
         if rect.xmin < emprise.xmin:
             rect = rect.shifted(emprise.xmin - rect.xmin, 0.0)
         if rect.xmax > emprise.xmax:
@@ -241,10 +276,11 @@ def build_footing_bbox_inside_emprise(wall, B_m, emprise, end_extension_m):
             issues.append({"severity": "ERROR", "code": "WIDTH_NOT_FITTING_EMPRISE", "wall_id": wall.id,
                            "message": "La largeur requise de semelle ne peut pas entrer dans l'emprise."})
             rect = rect.clipped_inside(emprise)
-        eccentricity = abs(wb.cx - rect.cx)
+        wall_mid_x = wb.cx
+        eccentricity = abs(wall_mid_x - rect.cx)
         if eccentricity <= 0.02:
             side_mode = "CENTERED"
-        elif rect.cx > wb.cx:
+        elif rect.cx > wall_mid_x:
             side_mode = "SHIFTED_INSIDE_POSITIVE_X"
         else:
             side_mode = "SHIFTED_INSIDE_NEGATIVE_X"
@@ -385,6 +421,16 @@ def design_strip_footings_under_walls(walls, emprise, q_allowable_kPa,
         wall_issues = []
         try:
             axis = wall.axis()
+            # Convention : axe = face mitoyenne. L'interieur est vers le
+            # centre de l'emprise. On determine le signe transversal.
+            emp_cx = 0.5 * (emprise.xmin + emprise.xmax)
+            emp_cy = 0.5 * (emprise.ymin + emprise.ymax)
+            if axis == "H":
+                y_axis = 0.5 * (wall.y1 + wall.y2)
+                wall.interior_sign = 1 if emp_cy >= y_axis else -1
+            else:
+                x_axis = 0.5 * (wall.x1 + wall.x2)
+                wall.interior_sign = 1 if emp_cx >= x_axis else -1
             wb = wall.wall_bbox()
             B, H, q_sls = compute_required_width_iterative(
                 wall.n_sls_kN_per_m, q_allowable_kPa, wall.thickness_m,
