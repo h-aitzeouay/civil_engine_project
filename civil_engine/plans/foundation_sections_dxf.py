@@ -849,6 +849,20 @@ def generate_foundation_sections_dxf(
         y=14.8,
     )
 
+    # Planche A3 en presentation (paperspace) cadree sur les coupes.
+    try:
+        from civil_engine.plans.paperspace_layout import setup_a3_sheet_fit_modelspace
+        from civil_engine.plans.cartouche import build_cartouche_values
+        setup_a3_sheet_fit_modelspace(
+            doc=doc,
+            values=build_cartouche_values(
+                plan_title="Coupes detaillees fondations",
+                scale_label="VARIABLE",
+            ),
+        )
+    except Exception:
+        pass
+
     from civil_engine.plans.dxf_finalize import finalize_and_save
     finalize_and_save(doc, output_path)
     return str(output_path)

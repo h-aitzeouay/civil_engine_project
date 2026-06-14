@@ -14,6 +14,7 @@ env/
 
 # Sorties locales du pipeline (regenerees a la demande)
 /SORTIE_PIPELINE/
+/_previews/
 _enc_check.txt
 *.tmp
 

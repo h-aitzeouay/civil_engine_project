@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import ezdxf
+from ezdxf import bbox
 from ezdxf.addons import Importer
 
 from civil_engine.plans import cartouche as C
@@ -168,3 +169,29 @@ def setup_a3_plan_sheet(
         return True
     except Exception:
         return False
+
+
+def setup_a3_sheet_fit_modelspace(
+    doc: Any,
+    values: dict[str, str],
+    layout_name: str = "Layout1",
+) -> bool:
+    """
+    Variante pour les planches de details (coupes, ancrages) sans plan unique :
+    la fenetre cadre l'ensemble du contenu du modelspace, a l'echelle ajustee
+    pour tout faire tenir dans la zone de dessin A3.
+    """
+    msp = doc.modelspace()
+    try:
+        ext = bbox.extents(msp, fast=True)
+    except Exception:
+        ext = None
+
+    bb = None
+    if ext is not None and ext.has_data:
+        bb = {
+            "xmin": ext.extmin.x, "ymin": ext.extmin.y,
+            "xmax": ext.extmax.x, "ymax": ext.extmax.y,
+        }
+    return setup_a3_plan_sheet(doc, bb, values, scale_denominator=50.0,
+                               layout_name=layout_name)

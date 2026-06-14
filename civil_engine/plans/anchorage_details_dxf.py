@@ -390,6 +390,20 @@ def generate_anchorage_details_dxf(
     draw_table(msp, anchorage_report, tx, ty)
     draw_shapes(msp, anchorage_report, tx, ty - 6.2)
 
+    # Planche A3 en presentation (paperspace) cadree sur les details d'ancrage.
+    try:
+        from civil_engine.plans.paperspace_layout import setup_a3_sheet_fit_modelspace
+        from civil_engine.plans.cartouche import build_cartouche_values
+        setup_a3_sheet_fit_modelspace(
+            doc=doc,
+            values=build_cartouche_values(
+                plan_title="Ancrages et recouvrements",
+                scale_label="VARIABLE",
+            ),
+        )
+    except Exception:
+        pass
+
     from civil_engine.plans.dxf_finalize import finalize_and_save
     finalize_and_save(doc, output_path)
     return str(output_path)
