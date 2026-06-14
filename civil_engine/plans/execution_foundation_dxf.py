@@ -643,10 +643,12 @@ def draw_strip_section_detail(
     # --- Semelle ---
     add_rect(msp, sx, sy, sx + draw_w, sy + draw_h, "DETAILS_SECTIONS")
 
-    # --- Voile montant au centre ---
-    wcx = sx + draw_w / 2.0
-    wx1 = wcx - wall_draw_w / 2.0
-    wx2 = wcx + wall_draw_w / 2.0
+    # --- Voile montant EN RIVE (cote mitoyen = bord exterieur) ---
+    # Convention : la face mitoyenne est le bord gauche de la semelle dessinee ;
+    # le voile demarre sur ce bord et la semelle se developpe vers l'interieur (droite).
+    wx1 = sx                          # voile colle au bord exterieur (mitoyen)
+    wx2 = sx + wall_draw_w
+    wcx = 0.5 * (wx1 + wx2)
     wall_top = sy + draw_h + wall_h
     add_rect(msp, wx1, sy + draw_h, wx2, wall_top, "DETAILS_SECTIONS")
 
@@ -693,14 +695,17 @@ def draw_strip_section_detail(
     add_text(msp, f"H={H:.2f}", cot_x + 0.06, sy + draw_h / 2.0 - 0.04, 0.075, "COTES_DETAILS")
 
     # --- Annotations ---
-    add_text(msp, f"Voile ep.{ep:.2f}", wcx - 0.32, wall_top + 0.05, 0.075, "DETAILS_SECTIONS")
+    add_text(msp, f"Voile ep.{ep:.2f}", wx1 - 0.05, wall_top + 0.05, 0.075, "DETAILS_SECTIONS")
+    # repere cote mitoyen (limite de propriete) sur le bord exterieur
+    add_line(msp, sx, sy - prop_h - 0.05, sx, wall_top + 0.20, "COTES_DETAILS")
+    add_text(msp, "Limite propriete (mitoyen)", sx - 0.05, wall_top + 0.22, 0.060, "COTES_DETAILS")
     reinf = sf.get("reinforcement", {}) if sf else {}
     princ = reinf.get("main_bottom", "HA12 e=0.20").replace("Inf transversal ", "")
     rep = reinf.get("distribution_bottom", "HA10 e=0.20").replace("Inf longitudinal ", "")
-    # ligne de rappel vers nappe inf
     add_text(msp, f"Princ.: {princ}", x + 0.15, sy + 0.02, 0.068, "ARM_FILANTE_PRINC")
     add_text(msp, f"Repart.: {rep}", x + 0.15, sy - 0.12, 0.068, "ARM_FILANTE_REP")
     add_text(msp, "Attentes voile + crosses securite", wx2 + 0.12, sy + draw_h + wall_h * 0.5, 0.065, "ATTENTES_POTEAUX")
+    add_text(msp, "Semelle developpee vers l'interieur", sx + 0.30, sy + draw_h * 0.4, 0.060, "DETAILS_SECTIONS")
     add_text(msp, "Beton proprete ep.0.10", px1, py1 - 0.02, 0.06, "DETAILS_SECTIONS")
     add_text(msp, "Ecarteurs 1/1.50 m - sur-prof. gros beton eventuelle", x + 0.15, y + 0.12, 0.058, "DETAILS_SECTIONS")
 
