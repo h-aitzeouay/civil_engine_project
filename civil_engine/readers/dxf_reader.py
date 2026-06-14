@@ -327,25 +327,30 @@ def read_dxf_model(dxf_path: str | Path) -> dict[str, Any]:
                 level["walls"].append(item)
 
             elif layer_type == "VOILE-AXE":
-                # Axe de voile : polyligne ouverte. On retient les deux
-                # extremites (premier et dernier point) comme axe du voile.
+                # Axe de voile : polyligne ouverte, potentiellement en
+                # plusieurs segments (L, U...). Chaque segment consecutif
+                # devient un voile droit distinct.
                 if len(points_global) >= 2:
-                    p_start = points_global[0]
-                    p_end = points_global[-1]
-                    wall_counter[level_name] = wall_counter.get(level_name, 0) + 1
-                    length = (
-                        (p_end[0] - p_start[0]) ** 2 + (p_end[1] - p_start[1]) ** 2
-                    ) ** 0.5
-                    level["wall_axes"].append({
-                        "id": f"V{wall_counter[level_name]:02d}",
-                        "x1": round(p_start[0], 4),
-                        "y1": round(p_start[1], 4),
-                        "x2": round(p_end[0], 4),
-                        "y2": round(p_end[1], 4),
-                        "length_m": round(length, 4),
-                        "points": points_global,
-                        "source_layer": layer,
-                    })
+                    for seg_i in range(len(points_global) - 1):
+                        p_start = points_global[seg_i]
+                        p_end = points_global[seg_i + 1]
+                        seg_len = (
+                            (p_end[0] - p_start[0]) ** 2
+                            + (p_end[1] - p_start[1]) ** 2
+                        ) ** 0.5
+                        if seg_len < 1e-6:
+                            continue  # segment nul, ignore
+                        wall_counter[level_name] = wall_counter.get(level_name, 0) + 1
+                        level["wall_axes"].append({
+                            "id": f"V{wall_counter[level_name]:02d}",
+                            "x1": round(p_start[0], 4),
+                            "y1": round(p_start[1], 4),
+                            "x2": round(p_end[0], 4),
+                            "y2": round(p_end[1], 4),
+                            "length_m": round(seg_len, 4),
+                            "points": [p_start, p_end],
+                            "source_layer": layer,
+                        })
                 else:
                     errors.append({
                         "code": "WALL_AXIS_INVALID",

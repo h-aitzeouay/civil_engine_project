@@ -305,19 +305,68 @@ def detect_strip_footing_interferences(footings):
     return issues
 
 
-def build_intersection_massifs(footings, emprise, margin_m=0.20):
+def _shared_endpoint(f1, f2, tol_m=0.30):
+    """
+    Detecte si deux semelles filantes partagent une extremite d'axe (angle L/U).
+    Compare les extremites des axes de voile. Retourne le point commun ou None.
+    """
+    ends1 = [(f1.wall_bbox.cx, f1.wall_bbox.cy)]  # fallback centre
+    # On utilise plutot les extremites stockees via l'axe du voile :
+    e1 = getattr(f1, "_axis_ends", None)
+    e2 = getattr(f2, "_axis_ends", None)
+    if not e1 or not e2:
+        return None
+    for p1 in e1:
+        for p2 in e2:
+            d = ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
+            if d <= tol_m:
+                return (0.5 * (p1[0] + p2[0]), 0.5 * (p1[1] + p2[1]))
+    return None
+
+
+def build_intersection_massifs(footings, emprise, margin_m=0.20, shared_tol_m=0.30):
+    """
+    Cree un massif a chaque jonction de deux filantes :
+    - cas 1 : chevauchement geometrique des bbox ;
+    - cas 2 : extremites d'axe communes (angle L/U) meme sans recouvrement large.
+    Hauteur du massif = max des deux filantes. Le massif englobe la zone
+    de jonction + une marge, et reste dans l'emprise.
+    """
     massifs = []
     idx = 1
     for i in range(len(footings)):
         for j in range(i + 1, len(footings)):
-            inter = footings[i].bbox.intersection(footings[j].bbox)
-            if inter is None or inter.area <= 1.0e-4:
+            f1, f2 = footings[i], footings[j]
+            inter = f1.bbox.intersection(f2.bbox)
+            has_overlap = inter is not None and inter.area > 1.0e-4
+            shared = _shared_endpoint(f1, f2, tol_m=shared_tol_m)
+
+            if not has_overlap and shared is None:
                 continue
-            massif = inter.expanded(margin_m).clipped_inside(emprise)
-            massifs.append({"id": f"MSF_{idx:02d}", "type": "MASSIF_INTERSECTION_SEMELLES_FILANTES",
-                            "layer": "MASSIF", "related_footings": [footings[i].id, footings[j].id],
-                            "bbox": massif.to_dict(),
-                            "message": "Massif commun indicatif a l'intersection de deux semelles filantes."})
+
+            # Zone de base du massif
+            if has_overlap:
+                base = inter
+            else:
+                # angle sans recouvrement : carre autour du point commun,
+                # de cote = max des deux largeurs B
+                side = max(f1.B_m, f2.B_m)
+                base = Rect(shared[0] - side / 2.0, shared[1] - side / 2.0,
+                            shared[0] + side / 2.0, shared[1] + side / 2.0)
+
+            H_massif = max(f1.H_m, f2.H_m)
+            massif_rect = base.expanded(margin_m).clipped_inside(emprise)
+
+            massifs.append({
+                "id": f"MSF_ANGLE_{idx:02d}",
+                "type": "MASSIF_ANGLE_SEMELLES_FILANTES",
+                "layer": "MASSIF",
+                "related_footings": [f1.id, f2.id],
+                "bbox": massif_rect.to_dict(),
+                "H_m": round_up(H_massif, 0.05),
+                "junction_type": "OVERLAP" if has_overlap else "SHARED_CORNER",
+                "message": "Massif d'angle fusionnant deux semelles filantes (hauteur = max des deux).",
+            })
             idx += 1
     return massifs
 
@@ -362,12 +411,15 @@ def design_strip_footings_under_walls(walls, emprise, q_allowable_kPa,
                 status = "OK_WITH_ECCENTRICITY"
                 message = "Semelle filante recalee dans l'emprise. Excentricite a verifier."
             A = bbox.width if axis == "H" else bbox.height
-            footing_results.append(StripFootingResult(
+            result_obj = StripFootingResult(
                 id=f"SFV_{idx:02d}", wall_id=wall.id, type="SEMELLE_FILANTE_SOUS_VOILE",
                 axis=axis, status=status, message=message, A_m=round(A, 3), B_m=round(B, 3),
                 H_m=round(H, 3), bbox=bbox, wall_bbox=wb, q_sls_kPa=round(q_sls, 2),
                 q_allowable_kPa=q_allowable_kPa, eccentricity_m=round(eccentricity, 3),
-                side_mode=side_mode, reinforcement=reinforcement, issues=wall_issues))
+                side_mode=side_mode, reinforcement=reinforcement, issues=wall_issues)
+            # extremites de l'axe du voile, pour la detection des angles
+            result_obj._axis_ends = [(wall.x1, wall.y1), (wall.x2, wall.y2)]
+            footing_results.append(result_obj)
         except Exception as exc:
             global_issues.append({"severity": "ERROR", "code": "STRIP_FOOTING_DESIGN_FAILED",
                                   "wall_id": wall.id, "message": str(exc)})
