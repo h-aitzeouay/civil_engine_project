@@ -19,6 +19,13 @@ from civil_engine.foundations.strip_footing_under_wall import (
     WallInput as StripWallInput,
     Rect as StripRect,
 )
+from civil_engine.foundations.strip_isolated_interference import (
+    resolve_peripheral_strip_isolated_interferences,
+    ColumnInput as IntfColumnInput,
+    WallRef as IntfWallRef,
+    IsolatedFootingInput as IntfIsolatedFooting,
+    StripFootingInput as IntfStripFooting,
+)
 from civil_engine.plans.foundation_dxf import generate_foundation_predim_dxf
 from civil_engine.foundations.combined_footings import generate_combined_footings
 from civil_engine.plans.combined_foundation_dxf import generate_combined_foundation_dxf
@@ -355,9 +362,71 @@ async def strip_footings(
                 phi_distribution_mm=phi_distribution_mm,
             )
 
+            # Brique 3bis : resolution des chevauchements filantes <-> isolees peripheriques
+            interference = None
+            try:
+                # Semelles isolees des poteaux
+                iso_report = predimension_isolated_footings(
+                    model=model, q_allowable_kPa=q_allowable_kPa,
+                    min_side_m=0.80, thickness_m=0.35,
+                    dimension_step_m=0.05, property_limit_margin_m=0.05,
+                )
+                iso_footings_raw = iso_report.get("footings", [])
+
+                # Marge de peripherie : un support est peripherique s'il est
+                # a moins de peripheral_margin du bord de l'emprise.
+                peripheral_margin = 1.0
+                ex0, ey0, ex1, ey1 = emp["xmin"], emp["ymin"], emp["xmax"], emp["ymax"]
+
+                def _is_peripheral(x, y):
+                    return (
+                        abs(x - ex0) <= peripheral_margin or abs(x - ex1) <= peripheral_margin
+                        or abs(y - ey0) <= peripheral_margin or abs(y - ey1) <= peripheral_margin
+                    )
+
+                # Construire les entrees du module d'interference
+                intf_walls = [
+                    IntfWallRef(id=w["id"], x1=w["x1"], y1=w["y1"], x2=w["x2"], y2=w["y2"],
+                                thickness_m=w["thickness_m"], n_sls_kN_per_m=w["n_sls_kN_per_m"],
+                                is_peripheral=True)
+                    for w in walls_data
+                ]
+                intf_strips = [
+                    IntfStripFooting(
+                        id=sf["id"], wall_id=sf["wall_id"],
+                        bbox=StripRect(**sf["bbox"]), H_m=sf["H_m"], B_m=sf["B_m"],
+                        q_sls_kPa=sf["q_sls_kPa"])
+                    for sf in design.get("strip_footings", [])
+                ]
+                cols_by_id = {c["id"]: c for c in fond.get("columns", [])}
+                intf_columns = []
+                intf_isolated = []
+                for f in iso_footings_raw:
+                    cid = f["column_id"]
+                    cx, cy = f.get("column_cx", f["cx"]), f.get("column_cy", f["cy"])
+                    col = cols_by_id.get(cid, {})
+                    intf_columns.append(IntfColumnInput(
+                        id=cid, x=cx, y=cy,
+                        bx_m=col.get("bx", 0.30), by_m=col.get("by", 0.30),
+                        n_sls_kN=f.get("N_ELS_kN", 0.0), n_uls_kN=f.get("N_ELU_kN"),
+                        is_peripheral=_is_peripheral(cx, cy)))
+                    intf_isolated.append(IntfIsolatedFooting(
+                        id=f["id"], column_id=cid,
+                        bbox=StripRect(**f["bbox"]), H_m=f["thickness_m"],
+                        q_sls_kPa=f.get("soil_pressure_ELS_kPa")))
+
+                interference = resolve_peripheral_strip_isolated_interferences(
+                    emprise=emprise, walls=intf_walls, columns=intf_columns,
+                    strip_footings=intf_strips, isolated_footings=intf_isolated,
+                    q_allowable_kPa=q_allowable_kPa)
+            except Exception as intf_err:
+                interference = {"status": "ERROR",
+                                "message": "Resolution des chevauchements echouee.",
+                                "detail": str(intf_err)}
+
             return JSONResponse({
                 "status": design["status"],
-                "method": "strip_footings_pipeline_v1",
+                "method": "strip_footings_pipeline_v2",
                 "hypotheses": {
                     "q_allowable_kPa": q_allowable_kPa,
                     "wall_thickness_m": wall_thickness_m,
@@ -371,6 +440,7 @@ async def strip_footings(
                 },
                 "wall_load_takedown": wlt,
                 "strip_footings_design": design,
+                "interference_resolution": interference,
             })
 
         except Exception as error:
