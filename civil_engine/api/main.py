@@ -2335,6 +2335,8 @@ async def project_package_zip(
     q_floor_kN_m2: float = Form(1.5),
     g_terrace_kN_m2: float = Form(6.0),
     q_terrace_kN_m2: float = Form(1.0),
+    wall_thickness_m: float = Form(0.20),
+    storey_height_m: float = Form(3.00),
 ):
     """
     Genere un dossier ZIP complet base sur la configuration corrigee :
@@ -2492,6 +2494,16 @@ async def project_package_zip(
             critical_zone_m=critical_zone_m,
             cover_m=cover_m,
             clean_concrete_m=clean_concrete_m,
+            q_allowable_kPa=q_allowable_kPa,
+            wall_thickness_m=wall_thickness_m,
+            storey_height_m=storey_height_m,
+            g_floor_kN_m2=g_floor_kN_m2,
+            q_floor_kN_m2=q_floor_kN_m2,
+            g_terrace_kN_m2=g_terrace_kN_m2,
+            q_terrace_kN_m2=q_terrace_kN_m2,
+            fck_mpa=fck_mpa,
+            fyk_mpa=fyk_mpa,
+            gamma_s=gamma_s,
         )
 
         return FileResponse(
