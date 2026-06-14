@@ -1539,6 +1539,12 @@ async def execution_foundation_dxf(
     phi_main_mm: float = Form(12.0),
     starter_diameter_mm: float = Form(14.0),
     stirrup_diameter_mm: float = Form(8.0),
+    wall_thickness_m: float = Form(0.20),
+    storey_height_m: float = Form(3.00),
+    g_floor_kN_m2: float = Form(5.00),
+    q_floor_kN_m2: float = Form(1.50),
+    g_terrace_kN_m2: float = Form(6.00),
+    q_terrace_kN_m2: float = Form(1.00),
     project_name: str = Form("INGENIERIE.COM - Projet fondations"),
     project_number: str = Form(""),
     plan_date: str = Form(""),
@@ -1585,6 +1591,33 @@ async def execution_foundation_dxf(
 
         output_path = temp_path / "PLAN_EXECUTION_FONDATIONS_INGENIERIE_COM.dxf"
 
+        # Calcul des semelles filantes sous voiles (si voiles presents)
+        strip_design = None
+        strip_interference = None
+        try:
+            wlt = compute_wall_load_takedown(
+                model=model, wall_thickness_m=wall_thickness_m, storey_height_m=storey_height_m,
+                g_floor_kN_m2=g_floor_kN_m2, q_floor_kN_m2=q_floor_kN_m2,
+                g_terrace_kN_m2=g_terrace_kN_m2, q_terrace_kN_m2=q_terrace_kN_m2,
+                gamma_g=1.35, gamma_q=1.50)
+            walls_data = wlt.get("walls", [])
+            if walls_data:
+                fond = next((l for l in model["levels"] if l["name"] == "FONDATION"),
+                            model["levels"][0] if model["levels"] else None)
+                if fond and fond.get("footprints"):
+                    emp = fond["footprints"][0]["bbox"]
+                    emprise = StripRect(emp["xmin"], emp["ymin"], emp["xmax"], emp["ymax"])
+                    walls = [StripWallInput(
+                        id=w["id"], x1=w["x1"], y1=w["y1"], x2=w["x2"], y2=w["y2"],
+                        thickness_m=w["thickness_m"], n_sls_kN_per_m=w["n_sls_kN_per_m"],
+                        n_uls_kN_per_m=w["n_uls_kN_per_m"]) for w in walls_data]
+                    strip_design = design_strip_footings_under_walls(
+                        walls=walls, emprise=emprise, q_allowable_kPa=q_allowable_kPa,
+                        fck_mpa=fck_mpa, fyk_mpa=fyk_mpa, gamma_s=gamma_s, cover_m=cover_m,
+                        phi_main_mm=phi_main_mm, phi_distribution_mm=10.0)
+        except Exception:
+            strip_design = None  # le plan reste valide sans filantes
+
         generate_execution_foundation_dxf(
             model=model,
             strategy_report=strategy_report,
@@ -1596,6 +1629,8 @@ async def execution_foundation_dxf(
             project_number=project_number,
             plan_date=plan_date,
             scale_label=scale_label,
+            strip_design=strip_design,
+            strip_interference=strip_interference,
         )
 
         return FileResponse(

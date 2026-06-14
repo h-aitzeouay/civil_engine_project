@@ -44,6 +44,9 @@ def ensure_execution_layers(doc) -> None:
         "ARMATURES": 4,
         "COTES_DETAILS": 4,
         "HACHURES_DETAILS": 8,
+        "SEMELLE_FILANTE": 3,
+        "VOILE_FONDATION": 5,
+        "MASSIF_FILANTE": 1,
     }
 
     for name, color in layers.items():
@@ -616,6 +619,44 @@ def draw_sections_panel(
 from civil_engine.plans.cartouche import insert_cartouche, build_cartouche_values, cartouche_size
 
 
+def draw_strip_footings_on_plan(msp, strip_design, interference=None):
+    """
+    Dessine les semelles filantes, voiles et massifs sur le plan d'execution,
+    sur les calques dedies (SEMELLE_FILANTE, VOILE_FONDATION, MASSIF_FILANTE).
+    strip_design = strip_footings_design (du pipeline filante).
+    """
+    if not strip_design:
+        return
+
+    def _rect(b, layer):
+        msp.add_lwpolyline(
+            [(b["xmin"], b["ymin"]), (b["xmax"], b["ymin"]),
+             (b["xmax"], b["ymax"]), (b["xmin"], b["ymax"])],
+            close=True, dxfattribs={"layer": layer})
+
+    # Semelles filantes + voiles
+    for sf in strip_design.get("strip_footings", []):
+        _rect(sf["bbox"], "SEMELLE_FILANTE")
+        wb = sf.get("wall_bbox")
+        if wb:
+            _rect(wb, "VOILE_FONDATION")
+        bb = sf["bbox"]
+        cx = 0.5 * (bb["xmin"] + bb["xmax"])
+        cy = 0.5 * (bb["ymin"] + bb["ymax"])
+        label = f"{sf['id']} {sf['B_m']:.2f}x{sf['H_m']:.2f}"
+        msp.add_text(label, dxfattribs={"height": 0.14, "layer": "SEMELLE_FILANTE"}
+                     ).set_placement((cx + 0.08, cy))
+
+    # Massifs d'angle (filante <-> filante)
+    for m in strip_design.get("massifs", []):
+        _rect(m["bbox"], "MASSIF_FILANTE")
+
+    # Massifs locaux combines poteau-voile
+    if interference:
+        for m in interference.get("final_decisions", {}).get("local_massifs", []):
+            _rect(m["bbox"], "MASSIF_FILANTE")
+
+
 def generate_execution_foundation_dxf(
     model: dict[str, Any],
     strategy_report: dict[str, Any],
@@ -627,6 +668,8 @@ def generate_execution_foundation_dxf(
     project_number: str = "",
     plan_date: str = "",
     scale_label: str = "1/50",
+    strip_design: dict[str, Any] | None = None,
+    strip_interference: dict[str, Any] | None = None,
 ) -> str:
     output_path = Path(output_path)
 
@@ -662,6 +705,7 @@ def generate_execution_foundation_dxf(
     draw_emprise_and_columns(msp, model, strategy_report)
     draw_axes(msp, model)
     draw_final_foundations(msp, strategy_report, occupied)
+    draw_strip_footings_on_plan(msp, strip_design, strip_interference)
     draw_reinforcement(msp, strategy_report, reinforcement_report, occupied)
     draw_starter_bars_on_plan(msp, model, starter_diameter_mm)
 
