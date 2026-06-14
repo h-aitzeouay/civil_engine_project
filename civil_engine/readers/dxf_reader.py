@@ -172,6 +172,7 @@ def init_level(level_name: str, origin: list[float]) -> dict[str, Any]:
         "footprints": [],
         "columns": [],
         "walls": [],
+        "wall_axes": [],
         "voids": [],
         "load_zones": [],
         "load_zone_labels": [],
@@ -247,6 +248,7 @@ def read_dxf_model(dxf_path: str | Path) -> dict[str, Any]:
     }
 
     column_counter: dict[str, int] = {}
+    wall_counter: dict[str, int] = {}
 
     # Deuxième passage : extraire les géométries
     for entity in msp:
@@ -323,6 +325,32 @@ def read_dxf_model(dxf_path: str | Path) -> dict[str, Any]:
 
             elif layer_type == "VOILES":
                 level["walls"].append(item)
+
+            elif layer_type == "VOILE-AXE":
+                # Axe de voile : polyligne ouverte. On retient les deux
+                # extremites (premier et dernier point) comme axe du voile.
+                if len(points_global) >= 2:
+                    p_start = points_global[0]
+                    p_end = points_global[-1]
+                    wall_counter[level_name] = wall_counter.get(level_name, 0) + 1
+                    length = (
+                        (p_end[0] - p_start[0]) ** 2 + (p_end[1] - p_start[1]) ** 2
+                    ) ** 0.5
+                    level["wall_axes"].append({
+                        "id": f"V{wall_counter[level_name]:02d}",
+                        "x1": round(p_start[0], 4),
+                        "y1": round(p_start[1], 4),
+                        "x2": round(p_end[0], 4),
+                        "y2": round(p_end[1], 4),
+                        "length_m": round(length, 4),
+                        "points": points_global,
+                        "source_layer": layer,
+                    })
+                else:
+                    errors.append({
+                        "code": "WALL_AXIS_INVALID",
+                        "message": f"Le calque {layer} doit contenir une polyligne d'au moins 2 points.",
+                    })
 
             elif layer_type.startswith("VIDE"):
                 level["voids"].append(item)
