@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Sorties locales du pipeline (regenerees a la demande)
+/SORTIE_PIPELINE/
+_enc_check.txt
+*.tmp
+
+# Outils / OS
+.idea/
+.vscode/
+*.log
+Thumbs.db
+desktop.ini
