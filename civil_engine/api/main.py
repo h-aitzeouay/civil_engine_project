@@ -12,7 +12,13 @@ from civil_engine.checks.column_continuity import check_column_continuity
 from civil_engine.checks.axis_detection import detect_axes_and_spans
 from civil_engine.engine.tributary_areas import compute_tributary_areas
 from civil_engine.engine.load_takedown import compute_load_takedown
+from civil_engine.engine.wall_load_takedown import compute_wall_load_takedown
 from civil_engine.foundations.footing_predim import predimension_isolated_footings
+from civil_engine.foundations.strip_footing_under_wall import (
+    design_strip_footings_under_walls,
+    WallInput as StripWallInput,
+    Rect as StripRect,
+)
 from civil_engine.plans.foundation_dxf import generate_foundation_predim_dxf
 from civil_engine.foundations.combined_footings import generate_combined_footings
 from civil_engine.plans.combined_foundation_dxf import generate_combined_foundation_dxf
@@ -254,6 +260,125 @@ async def footing_predim(
                 content={
                     "status": "ERROR",
                     "message": "Erreur pendant le prédimensionnement des semelles.",
+                    "detail": str(error),
+                },
+            )
+
+
+@app.post("/strip-footings")
+async def strip_footings(
+    dxf: UploadFile = File(...),
+    q_allowable_kPa: float = Form(200.0),
+    wall_thickness_m: float = Form(0.20),
+    storey_height_m: float = Form(3.00),
+    g_floor_kN_m2: float = Form(5.00),
+    q_floor_kN_m2: float = Form(1.50),
+    g_terrace_kN_m2: float = Form(6.00),
+    q_terrace_kN_m2: float = Form(1.00),
+    fck_mpa: float = Form(25.0),
+    fyk_mpa: float = Form(500.0),
+    gamma_s: float = Form(1.15),
+    cover_m: float = Form(0.05),
+    phi_main_mm: float = Form(12.0),
+    phi_distribution_mm: float = Form(10.0),
+) -> JSONResponse:
+    """
+    Dimensionnement des semelles filantes sous voiles.
+
+    Lit les voiles depuis le calque NIVEAU-VOILE-AXE (axe en polyligne ouverte),
+    calcule la charge lineaire par bande tributaire (demi-portee de chaque cote),
+    puis dimensionne chaque semelle filante (largeur, hauteur, ferraillage).
+    L'epaisseur du voile et la hauteur d'etage sont saisies en parametres.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        dxf_path = save_uploaded_file(dxf, temp_path)
+
+        try:
+            model = read_dxf_model(dxf_path)
+
+            # Brique 2 : descente de charges lineaire des voiles
+            wlt = compute_wall_load_takedown(
+                model=model,
+                wall_thickness_m=wall_thickness_m,
+                storey_height_m=storey_height_m,
+                g_floor_kN_m2=g_floor_kN_m2,
+                q_floor_kN_m2=q_floor_kN_m2,
+                g_terrace_kN_m2=g_terrace_kN_m2,
+                q_terrace_kN_m2=q_terrace_kN_m2,
+                gamma_g=1.35,
+                gamma_q=1.50,
+            )
+
+            walls_data = wlt.get("walls", [])
+            if not walls_data:
+                return JSONResponse({
+                    "status": "OK",
+                    "message": "Aucun voile (calque NIVEAU-VOILE-AXE) trouve dans le DXF.",
+                    "wall_load_takedown": wlt,
+                    "strip_footings": [],
+                })
+
+            # Construire les WallInput depuis la descente de charges
+            walls = [
+                StripWallInput(
+                    id=w["id"], x1=w["x1"], y1=w["y1"], x2=w["x2"], y2=w["y2"],
+                    thickness_m=w["thickness_m"],
+                    n_sls_kN_per_m=w["n_sls_kN_per_m"],
+                    n_uls_kN_per_m=w["n_uls_kN_per_m"],
+                )
+                for w in walls_data
+            ]
+
+            # Emprise (niveau FONDATION)
+            fond = next((l for l in model["levels"] if l["name"] == "FONDATION"),
+                        model["levels"][0] if model["levels"] else None)
+            if fond is None or not fond.get("footprints"):
+                return JSONResponse(
+                    status_code=400,
+                    content={"status": "ERROR",
+                             "message": "Emprise FONDATION introuvable pour caler les semelles filantes."},
+                )
+            emp = fond["footprints"][0]["bbox"]
+            emprise = StripRect(emp["xmin"], emp["ymin"], emp["xmax"], emp["ymax"])
+
+            # Brique 3 : dimensionnement des semelles filantes
+            design = design_strip_footings_under_walls(
+                walls=walls,
+                emprise=emprise,
+                q_allowable_kPa=q_allowable_kPa,
+                fck_mpa=fck_mpa,
+                fyk_mpa=fyk_mpa,
+                gamma_s=gamma_s,
+                cover_m=cover_m,
+                phi_main_mm=phi_main_mm,
+                phi_distribution_mm=phi_distribution_mm,
+            )
+
+            return JSONResponse({
+                "status": design["status"],
+                "method": "strip_footings_pipeline_v1",
+                "hypotheses": {
+                    "q_allowable_kPa": q_allowable_kPa,
+                    "wall_thickness_m": wall_thickness_m,
+                    "storey_height_m": storey_height_m,
+                    "g_floor_kN_m2": g_floor_kN_m2,
+                    "q_floor_kN_m2": q_floor_kN_m2,
+                    "g_terrace_kN_m2": g_terrace_kN_m2,
+                    "q_terrace_kN_m2": q_terrace_kN_m2,
+                    "fck_mpa": fck_mpa,
+                    "fyk_mpa": fyk_mpa,
+                },
+                "wall_load_takedown": wlt,
+                "strip_footings_design": design,
+            })
+
+        except Exception as error:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "ERROR",
+                    "message": "Erreur pendant le dimensionnement des semelles filantes.",
                     "detail": str(error),
                 },
             )
