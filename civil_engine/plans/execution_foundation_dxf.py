@@ -593,11 +593,125 @@ def draw_section_type_detail(
     if top_reinf:
         add_text(msp, "Sup", fx2 - 0.35, y_sup + 0.08, 0.075, "DETAILS_SECTIONS")
 
+def draw_strip_section_detail(
+    msp,
+    x: float,
+    y: float,
+    sf: dict[str, Any] | None = None,
+    wall_thickness_m: float = 0.20,
+) -> None:
+    """
+    Coupe transversale type d'une semelle filante sous voile (voile au centre,
+    attentes verticales). Inclut : semelle, beton de proprete hachure, voile
+    montant, nappes d'aciers, attentes du voile avec crosses, cotation, notes.
+    """
+    B = float(sf.get("B_m", 0.60)) if sf else 0.60
+    H = float(sf.get("H_m", 0.35)) if sf else 0.35
+    sid = sf.get("id", "SFV") if sf else "SFV"
+    ep = wall_thickness_m
+
+    # Cadre du detail
+    w_box = 4.40
+    h_box = 3.30
+    add_rect(msp, x, y, x + w_box, y + h_box, "DETAILS_SECTIONS")
+    add_text(msp, f"COUPE SEMELLE FILANTE {sid}", x + 0.12, y + h_box - 0.22, 0.10, "DETAILS_TITRES")
+
+    # Geometrie dessinee (dimensions fixes maitrisees pour tenir dans le cadre)
+    draw_w = 2.40                       # largeur dessinee de la semelle
+    sc = draw_w / max(B, 0.1)           # echelle horizontale
+    draw_h = min(H * sc, 0.55)          # hauteur semelle bornee
+    prop_h = 0.12                       # beton de proprete (fixe a l'ecran)
+    wall_h = 0.85                       # hauteur voile dessinee (bornee)
+    wall_draw_w = max(ep * sc, 0.20)
+
+    # Origine de la semelle (coin bas-gauche), centree dans le cadre
+    sx = x + (w_box - draw_w) / 2.0
+    sy = y + 0.95
+
+    # --- Beton de proprete hachure sous la semelle ---
+    deb = 0.12
+    px1, px2 = sx - deb, sx + draw_w + deb
+    py1, py2 = sy - prop_h, sy
+    add_rect(msp, px1, py1, px2, py2, "HACHURES_DETAILS")
+    import random
+    random.seed(7)
+    for _ in range(45):
+        gx = px1 + random.random() * (px2 - px1)
+        gy = py1 + random.random() * (py2 - py1)
+        add_circle(msp, gx, gy, 0.010, "HACHURES_DETAILS")
+
+    # --- Semelle ---
+    add_rect(msp, sx, sy, sx + draw_w, sy + draw_h, "DETAILS_SECTIONS")
+
+    # --- Voile montant au centre ---
+    wcx = sx + draw_w / 2.0
+    wx1 = wcx - wall_draw_w / 2.0
+    wx2 = wcx + wall_draw_w / 2.0
+    wall_top = sy + draw_h + wall_h
+    add_rect(msp, wx1, sy + draw_h, wx2, wall_top, "DETAILS_SECTIONS")
+
+    # --- Nappe inferieure (aciers principaux transversaux) ---
+    cov = 0.06
+    y_inf = sy + cov
+    add_line(msp, sx + cov, y_inf, sx + draw_w - cov, y_inf, "ARM_FILANTE_PRINC")
+    n_long = 5
+    for i in range(n_long):
+        bx = sx + cov + i * (draw_w - 2 * cov) / (n_long - 1)
+        add_circle(msp, bx, y_inf, 0.022, "ARM_FILANTE_PRINC")
+
+    # --- Nappe superieure ---
+    y_sup = sy + draw_h - cov
+    add_line(msp, sx + cov, y_sup, sx + draw_w - cov, y_sup, "ARM_FILANTE_REP")
+    for i in range(n_long):
+        bx = sx + cov + i * (draw_w - 2 * cov) / (n_long - 1)
+        add_circle(msp, bx, y_sup, 0.018, "ARM_FILANTE_REP")
+
+    # --- Attentes du voile (2 barres verticales avec crosses en bas) ---
+    att_x1 = wx1 + 0.04
+    att_x2 = wx2 - 0.04
+    att_bot = sy + cov
+    add_line(msp, att_x1, att_bot, att_x1, wall_top - 0.08, "ATTENTES_POTEAUX")
+    add_line(msp, att_x2, att_bot, att_x2, wall_top - 0.08, "ATTENTES_POTEAUX")
+    # crosses en bas (retour horizontal)
+    add_line(msp, att_x1, att_bot, att_x1 + 0.08, att_bot, "ATTENTES_POTEAUX")
+    add_line(msp, att_x2, att_bot, att_x2 - 0.08, att_bot, "ATTENTES_POTEAUX")
+    # crochets en haut
+    add_line(msp, att_x1, wall_top - 0.08, att_x1 + 0.06, wall_top - 0.02, "ATTENTES_POTEAUX")
+    add_line(msp, att_x2, wall_top - 0.08, att_x2 - 0.06, wall_top - 0.02, "ATTENTES_POTEAUX")
+
+    # --- Cotation largeur B (sous la propreté) ---
+    cot_y = py1 - 0.14
+    add_line(msp, sx, cot_y, sx + draw_w, cot_y, "COTES_DETAILS")
+    add_line(msp, sx, cot_y - 0.04, sx, cot_y + 0.04, "COTES_DETAILS")
+    add_line(msp, sx + draw_w, cot_y - 0.04, sx + draw_w, cot_y + 0.04, "COTES_DETAILS")
+    add_text(msp, f"B = {B:.2f} m", sx + draw_w / 2.0 - 0.28, cot_y - 0.15, 0.085, "COTES_DETAILS")
+    # cotation H (a droite)
+    cot_x = sx + draw_w + deb + 0.10
+    add_line(msp, cot_x, sy, cot_x, sy + draw_h, "COTES_DETAILS")
+    add_line(msp, cot_x - 0.04, sy, cot_x + 0.04, sy, "COTES_DETAILS")
+    add_line(msp, cot_x - 0.04, sy + draw_h, cot_x + 0.04, sy + draw_h, "COTES_DETAILS")
+    add_text(msp, f"H={H:.2f}", cot_x + 0.06, sy + draw_h / 2.0 - 0.04, 0.075, "COTES_DETAILS")
+
+    # --- Annotations ---
+    add_text(msp, f"Voile ep.{ep:.2f}", wcx - 0.32, wall_top + 0.05, 0.075, "DETAILS_SECTIONS")
+    reinf = sf.get("reinforcement", {}) if sf else {}
+    princ = reinf.get("main_bottom", "HA12 e=0.20").replace("Inf transversal ", "")
+    rep = reinf.get("distribution_bottom", "HA10 e=0.20").replace("Inf longitudinal ", "")
+    # ligne de rappel vers nappe inf
+    add_text(msp, f"Princ.: {princ}", x + 0.15, sy + 0.02, 0.068, "ARM_FILANTE_PRINC")
+    add_text(msp, f"Repart.: {rep}", x + 0.15, sy - 0.12, 0.068, "ARM_FILANTE_REP")
+    add_text(msp, "Attentes voile + crosses securite", wx2 + 0.12, sy + draw_h + wall_h * 0.5, 0.065, "ATTENTES_POTEAUX")
+    add_text(msp, "Beton proprete ep.0.10", px1, py1 - 0.02, 0.06, "DETAILS_SECTIONS")
+    add_text(msp, "Ecarteurs 1/1.50 m - sur-prof. gros beton eventuelle", x + 0.15, y + 0.12, 0.058, "DETAILS_SECTIONS")
+
+
 def draw_sections_panel(
     msp,
     strategy_report: dict[str, Any],
     x: float,
     y: float,
+    strip_design: dict[str, Any] | None = None,
+    wall_thickness_m: float = 0.20,
 ) -> None:
     w = 14.0
     h = 5.2
@@ -631,6 +745,12 @@ def draw_sections_panel(
 
     if "RL" in types_present:
         draw_section_type_detail(msp, px, py, "RL - radier local", top_reinf=True, eccentric=False)
+        drawn += 1
+
+    # Coupe transversale de la semelle filante (si voiles presents)
+    if strip_design and strip_design.get("strip_footings"):
+        first_sf = strip_design["strip_footings"][0]
+        draw_strip_section_detail(msp, px, py - 0.10, sf=first_sf, wall_thickness_m=wall_thickness_m)
         drawn += 1
 
     if drawn == 0:
@@ -741,6 +861,7 @@ def generate_execution_foundation_dxf(
     scale_label: str = "1/50",
     strip_design: dict[str, Any] | None = None,
     strip_interference: dict[str, Any] | None = None,
+    strip_wall_thickness_m: float = 0.20,
 ) -> str:
     output_path = Path(output_path)
 
@@ -816,6 +937,8 @@ def generate_execution_foundation_dxf(
         strategy_report,
         details_x,
         details_y - 11.20,
+        strip_design=strip_design,
+        wall_thickness_m=strip_wall_thickness_m,
     )
 
     # Cartouche A3 réel (gabarit INGENIERIE.COM), agrandi pour lisibilité

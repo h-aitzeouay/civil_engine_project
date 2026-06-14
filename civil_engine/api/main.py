@@ -1631,6 +1631,7 @@ async def execution_foundation_dxf(
             scale_label=scale_label,
             strip_design=strip_design,
             strip_interference=strip_interference,
+            strip_wall_thickness_m=wall_thickness_m,
         )
 
         return FileResponse(
