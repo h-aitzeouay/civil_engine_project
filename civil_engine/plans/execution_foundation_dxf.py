@@ -53,6 +53,8 @@ def ensure_execution_layers(doc) -> None:
         "SEMELLE_FILANTE": 3,
         "VOILE_FONDATION": 5,
         "MASSIF_FILANTE": 1,
+        "ARM_FILANTE_PRINC": 2,
+        "ARM_FILANTE_REP": 30,
     }
 
     for name, color in layers.items():
@@ -185,6 +187,7 @@ def draw_execution_table(
     reinforcement_report: dict[str, Any],
     x: float,
     y: float,
+    strip_design: dict[str, Any] | None = None,
 ) -> None:
     add_text(msp, "TABLEAU D'EXECUTION FONDATIONS", x, y, 0.22, "TABLEAU_EXECUTION")
     y -= 0.45
@@ -223,6 +226,36 @@ def draw_execution_table(
             add_text(msp, str(value), x + dx, y, 0.078, "TABLEAU_EXECUTION")
 
         y -= 0.22
+
+    # Section semelles filantes sous voiles
+    if strip_design and strip_design.get("strip_footings"):
+        y -= 0.30
+        add_text(msp, "SEMELLES FILANTES SOUS VOILES", x, y, 0.13, "SEMELLE_FILANTE")
+        y -= 0.30
+        sf_headers = [
+            ("SEM", 0.0), ("VOILE", 1.4), ("L", 2.4), ("B", 3.2), ("H", 4.0),
+            ("PRINCIPAL", 4.9), ("REPARTITION", 9.9),
+        ]
+        for title, dx in sf_headers:
+            add_text(msp, title, x + dx, y, 0.10, "SEMELLE_FILANTE")
+        y -= 0.25
+
+        for sf in strip_design["strip_footings"]:
+            reinf = sf.get("reinforcement", {})
+            principal = reinf.get("main_bottom", "").replace("Inf transversal ", "")
+            repart = reinf.get("distribution_bottom", "").replace("Inf longitudinal ", "")
+            values = [
+                (sf.get("id", ""), 0.0),
+                (sf.get("wall_id", ""), 1.4),
+                (f"{sf.get('A_m', 0):.2f}", 2.4),
+                (f"{sf.get('B_m', 0):.2f}", 3.2),
+                (f"{sf.get('H_m', 0):.2f}", 4.0),
+                (principal, 4.9),
+                (repart, 9.9),
+            ]
+            for value, dx in values:
+                add_text(msp, str(value), x + dx, y, 0.078, "SEMELLE_FILANTE")
+            y -= 0.22
 
 
 def draw_references(
@@ -658,17 +691,18 @@ def draw_strip_footings_on_plan(msp, strip_design, interference=None, occupied=N
         reinf = sf.get("reinforcement", {})
         spacing = float(reinf.get("main_spacing_m", 0.20)) or 0.20
 
-        # Ferraillage : transversal (principal) + longitudinal (repartition).
-        # Voile vertical (V) : semelle allongee selon Y.
-        #   - transversal principal = lignes horizontales (sens X)
-        #   - longitudinal repartition = lignes verticales (sens Y)
-        # Voile horizontal (H) : l'inverse.
+        # Affichage allege : on espace les barres a l'ecran (x2) pour ne pas
+        # confondre avec les semelles isolees adjacentes. L'annotation garde
+        # l'espacement reel du calcul. Calques dedies couleur distincte.
+        display_spacing = max(spacing * 2.0, 0.30)
+        rep_display_spacing = 0.40
+
         if axis == "V":
-            draw_bar_lines_x(msp, xmin, xmax, ymin, ymax, spacing, "ARM_INF_X", cover)
-            draw_bar_lines_y(msp, xmin, xmax, ymin, ymax, 0.20, "ARM_INF_Y", cover)
+            draw_bar_lines_x(msp, xmin, xmax, ymin, ymax, display_spacing, "ARM_FILANTE_PRINC", cover)
+            draw_bar_lines_y(msp, xmin, xmax, ymin, ymax, rep_display_spacing, "ARM_FILANTE_REP", cover)
         else:
-            draw_bar_lines_y(msp, xmin, xmax, ymin, ymax, spacing, "ARM_INF_Y", cover)
-            draw_bar_lines_x(msp, xmin, xmax, ymin, ymax, 0.20, "ARM_INF_X", cover)
+            draw_bar_lines_y(msp, xmin, xmax, ymin, ymax, display_spacing, "ARM_FILANTE_PRINC", cover)
+            draw_bar_lines_x(msp, xmin, xmax, ymin, ymax, rep_display_spacing, "ARM_FILANTE_REP", cover)
 
         # Annotation a leader harmonisee
         main = reinf.get("main_bottom", "")
@@ -755,6 +789,7 @@ def generate_execution_foundation_dxf(
         reinforcement_report=reinforcement_report,
         x=tx,
         y=ty,
+        strip_design=strip_design,
     )
 
     draw_references(msp, tx, ty - 5.10)
