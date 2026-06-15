@@ -7,3 +7,5 @@ python-docx
 reportlab
 numpy
 shapely
+ifcopenshell
+matplotlib

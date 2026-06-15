@@ -8,6 +8,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from civil_engine.readers.dxf_reader import read_dxf_model, read_dxf_summary
+from civil_engine.readers.ifc_reader import read_ifc_model, read_ifc_summary
 from civil_engine.checks.column_continuity import check_column_continuity
 from civil_engine.checks.axis_detection import detect_axes_and_spans
 from civil_engine.engine.tributary_areas import compute_tributary_areas
@@ -49,6 +50,7 @@ from civil_engine.quantities.foundation_boq import build_foundation_boq, export_
 from civil_engine.reports.foundation_calculation_report import build_foundation_calculation_report, export_calculation_report_md
 from civil_engine.reports.foundation_report_exports import export_calculation_report_docx, export_calculation_report_pdf
 from civil_engine.deliverables.project_package import generate_project_package_zip
+from civil_engine.deliverables.ifc_workflow_package import generate_ifc_workflow_package
 from civil_engine.quality.project_quality_check import build_project_quality_check
 from civil_engine.dashboard.project_dashboard import build_project_dashboard
 from civil_engine.reports.project_summary_report import export_project_summary_docx, export_project_summary_pdf
@@ -60,7 +62,7 @@ from civil_engine.plans.optimized_combined_foundation_dxf import generate_optimi
 
 app = FastAPI(
     title="civil_engine API — INGENIERIE.COM",
-    version="0.35.0",
+    version="0.36.0",
 )
 
 
@@ -3305,6 +3307,291 @@ async def project_summary_report_pdf(
             content={
                 "status": "ERROR",
                 "message": "Erreur pendant l'export PDF du rapport de synthese projet.",
+                "detail": str(error),
+            },
+        )
+
+
+# =====================================================
+# Workflow IFC : Ifc -> API -> plan PDF + note de calcul
+# =====================================================
+
+
+@app.post("/validate-ifc")
+async def validate_ifc(
+    ifc: UploadFile = File(...),
+) -> JSONResponse:
+    """
+    Lit un fichier IFC et renvoie un resume (niveaux, poteaux, voiles, emprise).
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        ifc_path = save_uploaded_file(ifc, temp_path)
+
+        try:
+            report = read_ifc_summary(ifc_path)
+            return JSONResponse(report)
+
+        except Exception as error:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "ERROR",
+                    "message": "Erreur pendant la lecture du fichier IFC.",
+                    "detail": str(error),
+                },
+            )
+
+
+@app.post("/extract-model-ifc")
+async def extract_model_ifc(
+    ifc: UploadFile = File(...),
+) -> JSONResponse:
+    """
+    Extrait le model.json depuis un fichier IFC (meme structure que le DXF).
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        ifc_path = save_uploaded_file(ifc, temp_path)
+
+        try:
+            model = read_ifc_model(ifc_path)
+            return JSONResponse(model)
+
+        except Exception as error:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "ERROR",
+                    "message": "Erreur pendant l'extraction du model.json depuis l'IFC.",
+                    "detail": str(error),
+                },
+            )
+
+
+@app.post("/ifc-workflow", response_model=None)
+async def ifc_workflow(
+    ifc: UploadFile = File(...),
+    project_name: str = Form("INGENIERIE.COM - Projet fondations"),
+    project_number: str = Form(""),
+    plan_date: str = Form(""),
+    scale_label: str = Form("1/50"),
+    q_allowable_kPa: float = Form(200.0),
+    fck_mpa: float = Form(25.0),
+    fyk_mpa: float = Form(500.0),
+    gamma_s: float = Form(1.15),
+    gamma_c: float = Form(1.50),
+    cover_m: float = Form(0.05),
+    clean_concrete_m: float = Form(0.10),
+    phi_main_mm: float = Form(12.0),
+    starter_diameter_mm: float = Form(14.0),
+    stirrup_diameter_mm: float = Form(8.0),
+    max_spacing_m: float = Form(0.20),
+    min_diameter_mm: float = Form(10.0),
+    backfill_kN_m2: float = Form(0.0),
+    g_floor_kN_m2: float = Form(5.0),
+    q_floor_kN_m2: float = Form(1.5),
+    g_terrace_kN_m2: float = Form(6.0),
+    q_terrace_kN_m2: float = Form(1.0),
+    wall_thickness_m: float = Form(0.20),
+    storey_height_m: float = Form(3.00),
+):
+    """
+    Workflow complet Ifc -> API -> plan PDF + note de calcul.
+
+    Lit un fichier IFC, deroule le pipeline fondations (avec remediation
+    qualite : recalage dans l'emprise, augmentation de H pour le poinconnement,
+    securisation des ancrages), puis renvoie un ZIP contenant :
+    - le plan d'execution fondations en PDF (et son DXF source) ;
+    - la note de calcul en PDF (et MD/DOCX) ;
+    - le model.json IFC et les rapports techniques JSON.
+    """
+    temp_path = Path(tempfile.mkdtemp())
+    ifc_path = save_uploaded_file(ifc, temp_path)
+
+    try:
+        model = read_ifc_model(ifc_path)
+
+        strategy_report = decide_foundation_strategy(
+            model=model,
+            q_allowable_kPa=q_allowable_kPa,
+            backfill_kN_m2=backfill_kN_m2,
+            g_floor_kN_m2=g_floor_kN_m2,
+            q_floor_kN_m2=q_floor_kN_m2,
+            g_terrace_kN_m2=g_terrace_kN_m2,
+            q_terrace_kN_m2=q_terrace_kN_m2,
+        )
+
+        strategy_report = fix_support_geometry_non_destructive(
+            model=model,
+            strategy_report=strategy_report,
+            support_margin_m=0.05,
+        )
+
+        strategy_report, _geometry_corrections = fix_foundations_inside_emprise(
+            model=model,
+            strategy_report=strategy_report,
+            margin_m=0.05,
+        )
+
+        reinforcement_report = design_reinforcement_prelim(
+            model=model,
+            strategy_report=strategy_report,
+            fck_mpa=fck_mpa,
+            fyk_mpa=fyk_mpa,
+            gamma_s=gamma_s,
+            cover_m=cover_m,
+            phi_main_mm=phi_main_mm,
+        )
+
+        reinforcement_final_report = check_reinforcement_final(
+            reinforcement_report=reinforcement_report,
+            max_spacing_m=max_spacing_m,
+            min_diameter_mm=min_diameter_mm,
+        )
+
+        punching_final_report = check_punching_final(
+            model=model,
+            strategy_report=strategy_report,
+            reinforcement_final_report=reinforcement_final_report,
+            fck_mpa=fck_mpa,
+            gamma_c=gamma_c,
+            cover_m=cover_m,
+        )
+
+        strategy_report, _punching_corrections = fix_punching_by_increasing_thickness(
+            strategy_report=strategy_report,
+            punching_final_report=punching_final_report,
+            safety_factor=1.10,
+            min_increment_m=0.05,
+            target_utilization=0.80,
+        )
+
+        reinforcement_report = design_reinforcement_prelim(
+            model=model,
+            strategy_report=strategy_report,
+            fck_mpa=fck_mpa,
+            fyk_mpa=fyk_mpa,
+            gamma_s=gamma_s,
+            cover_m=cover_m,
+            phi_main_mm=phi_main_mm,
+        )
+
+        reinforcement_final_report = check_reinforcement_final(
+            reinforcement_report=reinforcement_report,
+            max_spacing_m=max_spacing_m,
+            min_diameter_mm=min_diameter_mm,
+        )
+
+        punching_final_report = check_punching_final(
+            model=model,
+            strategy_report=strategy_report,
+            reinforcement_final_report=reinforcement_final_report,
+            fck_mpa=fck_mpa,
+            gamma_c=gamma_c,
+            cover_m=cover_m,
+        )
+
+        anchorage_report = build_anchorage_details(
+            model=model,
+            strategy_report=strategy_report,
+            starter_diameter_mm=starter_diameter_mm,
+            stirrup_diameter_mm=stirrup_diameter_mm,
+            cover_m=cover_m,
+        )
+
+        anchorage_report, _anchorage_corrections = secure_anchorage_execution_solution(
+            anchorage_report=anchorage_report,
+        )
+
+        boq_report = build_foundation_boq(
+            strategy_report=strategy_report,
+            reinforcement_report=reinforcement_report,
+            anchorage_report=anchorage_report,
+            clean_concrete_m=clean_concrete_m,
+        )
+
+        hypotheses = {
+            "project_name": project_name,
+            "q_allowable_kPa": q_allowable_kPa,
+            "fck_mpa": fck_mpa,
+            "fyk_mpa": fyk_mpa,
+            "gamma_s": gamma_s,
+            "gamma_c": gamma_c,
+            "cover_m": cover_m,
+            "clean_concrete_m": clean_concrete_m,
+            "phi_main_mm": phi_main_mm,
+            "starter_diameter_mm": starter_diameter_mm,
+            "stirrup_diameter_mm": stirrup_diameter_mm,
+            "max_spacing_m": max_spacing_m,
+            "min_diameter_mm": min_diameter_mm,
+        }
+
+        calculation_report = build_foundation_calculation_report(
+            model=model,
+            strategy_report=strategy_report,
+            reinforcement_report=reinforcement_report,
+            reinforcement_final_report=reinforcement_final_report,
+            punching_final_report=punching_final_report,
+            anchorage_report=anchorage_report,
+            boq_report=boq_report,
+            hypotheses=hypotheses,
+        )
+
+        # Semelles filantes sous voiles (si voiles presents dans l'IFC)
+        strip_design = None
+        try:
+            wlt = compute_wall_load_takedown(
+                model=model, wall_thickness_m=wall_thickness_m, storey_height_m=storey_height_m,
+                g_floor_kN_m2=g_floor_kN_m2, q_floor_kN_m2=q_floor_kN_m2,
+                g_terrace_kN_m2=g_terrace_kN_m2, q_terrace_kN_m2=q_terrace_kN_m2,
+                gamma_g=1.35, gamma_q=1.50)
+            walls_data = wlt.get("walls", [])
+            if walls_data:
+                fond = next((l for l in model["levels"] if l["name"] == "FONDATION"),
+                            model["levels"][0] if model["levels"] else None)
+                if fond and fond.get("footprints"):
+                    emp = fond["footprints"][0]["bbox"]
+                    emprise = StripRect(emp["xmin"], emp["ymin"], emp["xmax"], emp["ymax"])
+                    walls = [StripWallInput(
+                        id=w["id"], x1=w["x1"], y1=w["y1"], x2=w["x2"], y2=w["y2"],
+                        thickness_m=w["thickness_m"], n_sls_kN_per_m=w["n_sls_kN_per_m"],
+                        n_uls_kN_per_m=w["n_uls_kN_per_m"]) for w in walls_data]
+                    strip_design = design_strip_footings_under_walls(
+                        walls=walls, emprise=emprise, q_allowable_kPa=q_allowable_kPa,
+                        fck_mpa=fck_mpa, fyk_mpa=fyk_mpa, gamma_s=gamma_s, cover_m=cover_m,
+                        phi_main_mm=phi_main_mm, phi_distribution_mm=10.0)
+        except Exception:
+            strip_design = None  # le dossier reste valide sans filantes
+
+        zip_path, _errors = generate_ifc_workflow_package(
+            model=model,
+            strategy_report=strategy_report,
+            reinforcement_report=reinforcement_report,
+            anchorage_report=anchorage_report,
+            calculation_report=calculation_report,
+            output_dir=temp_path,
+            starter_diameter_mm=starter_diameter_mm,
+            project_name=project_name,
+            project_number=project_number,
+            plan_date=plan_date,
+            scale_label=scale_label,
+            strip_design=strip_design,
+            strip_wall_thickness_m=wall_thickness_m,
+        )
+
+        return FileResponse(
+            path=zip_path,
+            filename="WORKFLOW_IFC_PLAN_NOTE_INGENIERIE_COM.zip",
+            media_type="application/zip",
+        )
+
+    except Exception as error:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "ERROR",
+                "message": "Erreur pendant le workflow IFC (plan PDF + note de calcul).",
                 "detail": str(error),
             },
         )

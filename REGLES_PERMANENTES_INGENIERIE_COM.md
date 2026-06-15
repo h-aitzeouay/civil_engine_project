@@ -352,6 +352,36 @@
   - liste des livrables ;
   - réserves d'ingénierie.
 
+## Version 0.36.0
+- Ajout du workflow IFC : Ifc -> API -> plan PDF + note de calcul.
+- Ajout d'un lecteur IFC (civil_engine/readers/ifc_reader.py) qui produit le
+  meme `model` que le lecteur DXF, afin de reutiliser tout le pipeline fondations.
+- Conventions de mapping IFC :
+  - IfcBuildingStorey tries par altitude ; le plus bas devient FONDATION,
+    puis RDC, ETAGE1, ETAGE2... ;
+  - IfcColumn rattaches a leur niveau et regroupes en piles verticales
+    (poteaux P01, P02... partages, base portee au niveau FONDATION) ;
+  - section des poteaux lue depuis le profil (rectangle / cercle), sinon
+    section carree par defaut avec avertissement ;
+  - IfcWall -> axes de voiles (representation Axis) au niveau FONDATION ;
+  - emprise = rectangle englobant des elements structuraux + marge,
+    dupliquee sur chaque niveau pour la descente de charges ;
+  - toutes les coordonnees sont converties en metres via l'unite du projet IFC.
+- Ajout du rendu PDF des plans DXF (civil_engine/plans/plan_pdf.py) via le
+  backend matplotlib de ezdxf.
+- Ajout endpoints :
+  - POST /validate-ifc : resume du fichier IFC (niveaux, poteaux, voiles) ;
+  - POST /extract-model-ifc : model.json depuis l'IFC ;
+  - POST /ifc-workflow : ZIP contenant le plan d'execution en PDF (et son DXF),
+    la note de calcul en PDF (et MD/DOCX), le model.json IFC et les JSON.
+- Le workflow IFC s'appuie sur la configuration corrigee (remediation qualite :
+  recalage dans l'emprise, augmentation de H pour le poinconnement, ancrages
+  securises), conformement a la regle de la version 0.33.0.
+- Le plan et la note restent un predimensionnement automatique a valider par un
+  ingenieur structure. Le mapping IFC suppose des conventions de modelisation
+  standard et doit etre verifie selon le modele BIM reel.
+- Nouvelles dependances : ifcopenshell, matplotlib.
+
 ## Version 0.35.0
 - Ajout du rapport de synthèse projet.
 - Ajout endpoints :
