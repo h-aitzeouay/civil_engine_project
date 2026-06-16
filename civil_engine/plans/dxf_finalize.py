@@ -36,7 +36,8 @@ def lineweight_for_layer(name: str) -> int | None:
 
     # Aciers
     if n.startswith("ARM") or "ATTENTES" in n or n == "ARMATURES" or "RECOUVREMENT" in n:
-        if "PRINC" in n or "INF" in n or "SUP" in n or n == "ARMATURES" or "ATTENTES" in n:
+        if ("PRINC" in n or "INF" in n or "SUP" in n or n == "ARMATURES"
+                or "ATTENTES" in n or n.endswith("_PR")):
             return LW_ARM_PRINC
         return LW_FIN
     if "CADRES" in n:
@@ -64,7 +65,8 @@ def lineweight_for_layer(name: str) -> int | None:
     if "EMPRISE" in n:
         return LW_EMPRISE
     if any(k in n for k in ("SEMELLE", "MASSIF", "VOILE", "POTEAU",
-                            "BETON", "COUPE", "RADIER")):
+                            "BETON", "COUPE", "RADIER",
+                            "POUTRE", "REDRESS", "LONGRINE", "CHAINAGE")):
         return LW_BETON
     if n in ("SI", "SE", "SC", "RL"):
         return LW_BETON

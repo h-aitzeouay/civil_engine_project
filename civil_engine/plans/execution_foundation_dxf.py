@@ -55,6 +55,8 @@ def ensure_execution_layers(doc) -> None:
         "MASSIF_FILANTE": 1,
         "ARM_FILANTE_PRINC": 2,
         "ARM_FILANTE_REP": 30,
+        "POUTRE_REDRESSEMENT": 30,
+        "ARM_PR": 2,
     }
 
     for name, color in layers.items():
@@ -853,6 +855,60 @@ def draw_strip_footings_on_plan(msp, strip_design, interference=None, occupied=N
             _rect(m["bbox"], "MASSIF_FILANTE")
 
 
+def draw_strap_beams_on_plan(msp, strap_design, occupied=None):
+    """
+    Dessine les poutres de redressement (PR) sur le plan : contour de la poutre
+    (rectangle oriente start->end, largeur b), axe, aciers principaux schematiques
+    et annotation a leader. occupied = anti-chevauchement des annotations.
+    """
+    import math as _m
+    if not strap_design:
+        return
+    if occupied is None:
+        occupied = []
+
+    for pr in strap_design.get("strap_beams", []):
+        x1, y1 = pr["start"]
+        x2, y2 = pr["end"]
+        b = float(pr["b_m"])
+        dx, dy = x2 - x1, y2 - y1
+        L = _m.hypot(dx, dy)
+        if L < 1e-6:
+            continue
+        ux, uy = dx / L, dy / L
+        nx, ny = -uy, ux           # normale unitaire
+        hw = b / 2.0
+
+        # Contour de la poutre
+        p = [(x1 + nx * hw, y1 + ny * hw), (x2 + nx * hw, y2 + ny * hw),
+             (x2 - nx * hw, y2 - ny * hw), (x1 - nx * hw, y1 - ny * hw)]
+        msp.add_lwpolyline(p, close=True, dxfattribs={"layer": "POUTRE_REDRESSEMENT"})
+
+        # Axe de la poutre (pointille via meme calque)
+        msp.add_line((x1, y1), (x2, y2), dxfattribs={"layer": "POUTRE_REDRESSEMENT"})
+
+        # Aciers principaux schematiques (2 files proches des faces)
+        off = hw - 0.04
+        for s in (off, -off):
+            msp.add_line((x1 + nx * s, y1 + ny * s), (x2 + nx * s, y2 + ny * s),
+                         dxfattribs={"layer": "ARM_PR"})
+
+        # Annotation a leader
+        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        lines = [f"{pr['id']}  {b:.2f}x{pr['h_m']:.2f}",
+                 f"Sup {pr['bars_top']} / Inf {pr['bars_bottom']}"]
+        bb = {"xmin": min(x1, x2), "xmax": max(x1, x2),
+              "ymin": min(y1, y2), "ymax": max(y1, y2)}
+        try:
+            label_box = choose_label_box(bbox=bb, lines=lines, occupied=occupied,
+                                         text_height=0.09, line_spacing=0.16)
+            add_label_lines(msp, label_box, lines, "TEXTES")
+            add_leader_to_label(msp, bb, label_box)
+            occupied.append(pad_box(label_box, 0.08))
+        except Exception:
+            add_text(msp, lines[0], mx, my + 0.10, 0.09, "TEXTES")
+
+
 def generate_execution_foundation_dxf(
     model: dict[str, Any],
     strategy_report: dict[str, Any],
@@ -905,6 +961,15 @@ def generate_execution_foundation_dxf(
     draw_reinforcement(msp, strategy_report, reinforcement_report, occupied)
     draw_strip_footings_on_plan(msp, strip_design, strip_interference, occupied)
     draw_starter_bars_on_plan(msp, model, starter_diameter_mm)
+
+    # Poutres de redressement (PR) pour les semelles excentrees.
+    strap_design = None
+    try:
+        from civil_engine.foundations.poutre_redressement import design_strap_beams
+        strap_design = design_strap_beams(model=model, strategy_report=strategy_report)
+        draw_strap_beams_on_plan(msp, strap_design, occupied)
+    except Exception:
+        strap_design = None  # le plan reste valide sans PR
 
     # Zone tableau à droite
     tx, ty = table_position(model)
