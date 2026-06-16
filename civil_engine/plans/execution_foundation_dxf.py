@@ -782,6 +782,60 @@ def draw_sections_panel(
         "DETAILS_SECTIONS",
     )
 
+
+def _parse_bars_label(label: str) -> tuple[int, int]:
+    """'2HA14' -> (2, 14). Defaut (2, 12)."""
+    import re
+    m = re.match(r"\s*(\d+)\s*HA\s*(\d+)", str(label or ""))
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    return 2, 12
+
+
+def draw_beam_section_detail(msp, x, y, title, b, h, top_label, bot_label,
+                             stirrup_label, scale=2.0):
+    """Coupe transversale type d'une poutre : contour b x h, cadre, aciers
+    superieurs/inferieurs, cotes et libelles."""
+    W, H = b * scale, h * scale
+    c = 0.04 * scale
+    add_rect(msp, x, y, x + W, y + H, "DETAILS_SECTIONS")
+    add_rect(msp, x + c, y + c, x + W - c, y + H - c, "ARM_PR")  # cadre
+
+    def _bars(n, yy, phi):
+        r = max(phi / 1000.0 * scale * 0.5, 0.028)
+        if n <= 1:
+            xs = [x + W / 2.0]
+        else:
+            span = (W - 2 * c - 2 * r)
+            xs = [x + c + r + span * i / (n - 1) for i in range(n)]
+        for bx in xs:
+            msp.add_circle((bx, yy), r, dxfattribs={"layer": "ARM_PR"})
+
+    nt, pt = _parse_bars_label(top_label)
+    nb, pb = _parse_bars_label(bot_label)
+    _bars(nt, y + H - c - 0.06, pt)
+    _bars(nb, y + c + 0.06, pb)
+
+    add_text(msp, title, x, y + H + 0.12, 0.10, "DETAILS_TITRES")
+    add_text(msp, f"{b:.2f} x {h:.2f} m", x, y - 0.18, 0.09, "DETAILS_SECTIONS")
+    add_text(msp, f"Sup {top_label} / Inf {bot_label}", x, y - 0.34, 0.08, "DETAILS_SECTIONS")
+    add_text(msp, f"Cadres {stirrup_label}", x, y - 0.50, 0.08, "DETAILS_SECTIONS")
+
+
+def draw_beam_sections_panel(msp, x, y, beams):
+    """Panneau de coupes types des poutres (chainage / PR / liaison)."""
+    if not beams:
+        return
+    w, h = 14.0, 3.6
+    draw_panel(msp, "D4 - COUPES TYPES POUTRES (CHAINAGE / REDRESSEMENT / LIAISON)",
+               x, y, w, h, "DETAILS_TITRES")
+    px = x + 1.10
+    py = y + 1.30
+    for bd in beams:
+        draw_beam_section_detail(msp, px, py, bd["title"], bd["b"], bd["h"],
+                                 bd["top"], bd["bot"], bd["stirrup"])
+        px += 4.30
+
 # =========================================================
 # GENERATION FINALE
 # =========================================================
@@ -1064,6 +1118,25 @@ def generate_execution_foundation_dxf(
         strip_design=strip_design,
         wall_thickness_m=strip_wall_thickness_m,
     )
+
+    # Coupes types des poutres (chainage / PR / liaison) : un panneau dedie.
+    beams_sections = []
+    try:
+        if tie_design and tie_design.get("ties"):
+            t = tie_design["ties"][0]
+            beams_sections.append({"title": "Chainage (longrine)", "b": t["b_m"], "h": t["h_m"],
+                                   "top": "2HA12", "bot": "2HA12", "stirrup": "HA8 e=15"})
+        if strap_design and strap_design.get("strap_beams"):
+            s = strap_design["strap_beams"][0]
+            beams_sections.append({"title": f"Redressement {s['id']}", "b": s["b_m"], "h": s["h_m"],
+                                   "top": s["bars_top"], "bot": s["bars_bottom"], "stirrup": "HA8 e=15"})
+        if central_tie_design and central_tie_design.get("ties"):
+            c = central_tie_design["ties"][0]
+            beams_sections.append({"title": f"Liaison centrale {c['id']}", "b": c["b_m"], "h": c["h_m"],
+                                   "top": "2HA14", "bot": "2HA14", "stirrup": "HA8 e=15"})
+        draw_beam_sections_panel(msp, details_x, details_y - 16.40, beams_sections)
+    except Exception:
+        pass
 
     cart_values = build_cartouche_values(
         project_name=project_name,

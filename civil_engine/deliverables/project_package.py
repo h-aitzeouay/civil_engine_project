@@ -109,6 +109,13 @@ def generate_project_package_zip(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     work_dir = output_dir / "DOSSIER_FONDATIONS_INGENIERIE_COM"
+
+    # Nettoyage : on repart d'un dossier vierge pour ne pas embarquer d'anciens
+    # livrables (ex. plans DXF d'une generation precedente).
+    import shutil
+    if work_dir.exists():
+        shutil.rmtree(work_dir, ignore_errors=True)
+
     dxf_dir = work_dir / "01_DXF"
     reports_dir = work_dir / "02_RAPPORTS"
     boq_dir = work_dir / "03_METRE"
@@ -123,90 +130,24 @@ def generate_project_package_zip(
     # DXF
     # =====================================================
 
+    # Un seul plan DXF consolide : le plan d'execution integre desormais le plan,
+    # le ferraillage, les attentes, les longrines/chainages, les poutres de
+    # redressement et de liaison, les details (ancrages, attentes, sections) et
+    # les coupes types des poutres. Les anciens plans separes (coupes, ancrages,
+    # attentes, ferraillage, poinconnement) ne sont plus exportes individuellement.
     safe_generate(
-        "01_PLAN_EXECUTION_FONDATIONS.dxf",
+        "PLAN_EXECUTION_FONDATIONS.dxf",
         generate_execution_foundation_dxf,
         errors,
         model=model,
         strategy_report=strategy_report,
         reinforcement_report=reinforcement_report,
         anchorage_report=anchorage_report,
-        output_path=dxf_dir / "01_PLAN_EXECUTION_FONDATIONS.dxf",
+        output_path=dxf_dir / "PLAN_EXECUTION_FONDATIONS.dxf",
         starter_diameter_mm=starter_diameter_mm,
         strip_design=strip_design_pkg,
         strip_wall_thickness_m=wall_thickness_m,
     )
-
-    safe_generate(
-        "02_COUPES_DETAILLEES_FONDATIONS.dxf",
-        generate_foundation_sections_dxf,
-        errors,
-        model=model,
-        strategy_report=strategy_report,
-        reinforcement_report=reinforcement_report,
-        anchorage_report=anchorage_report,
-        output_path=dxf_dir / "02_COUPES_DETAILLEES_FONDATIONS.dxf",
-        cover_m=cover_m,
-        clean_concrete_m=clean_concrete_m,
-        starter_diameter_mm=starter_diameter_mm,
-        stirrup_diameter_mm=stirrup_diameter_mm,
-        stirrup_spacing_cm=stirrup_spacing_cm,
-        stirrup_secondary_spacing_cm=stirrup_secondary_spacing_cm,
-        critical_zone_m=critical_zone_m,
-    )
-
-    safe_generate(
-        "03_ANCRAGES_RECOUVREMENTS.dxf",
-        generate_anchorage_details_dxf,
-        errors,
-        model=model,
-        strategy_report=strategy_report,
-        anchorage_report=anchorage_report,
-        output_path=dxf_dir / "03_ANCRAGES_RECOUVREMENTS.dxf",
-    )
-
-    safe_generate(
-        "04_ATTENTES_POTEAUX.dxf",
-        generate_starter_bars_dxf,
-        errors,
-        model=model,
-        strategy_report=strategy_report,
-        output_path=dxf_dir / "04_ATTENTES_POTEAUX.dxf",
-        starter_diameter_mm=starter_diameter_mm,
-        stirrup_diameter_mm=stirrup_diameter_mm,
-        stirrup_spacing_cm=stirrup_spacing_cm,
-        stirrup_secondary_spacing_cm=stirrup_secondary_spacing_cm,
-        critical_zone_m=critical_zone_m,
-    )
-
-    safe_generate(
-        "05_FERRAILLAGE_PRELIMINAIRE.dxf",
-        generate_reinforcement_dxf,
-        errors,
-        model=model,
-        strategy_report=strategy_report,
-        reinforcement_report=reinforcement_report,
-        output_path=dxf_dir / "05_FERRAILLAGE_PRELIMINAIRE.dxf",
-    )
-
-    # Poinçonnement DXF optionnel
-    try:
-        from civil_engine.plans.punching_dxf import generate_punching_dxf
-
-        safe_generate(
-            "06_POINCONNEMENT_FINAL.dxf",
-            generate_punching_dxf,
-            errors,
-            model=model,
-            strategy_report=strategy_report,
-            punching_report=punching_final_report,
-            output_path=dxf_dir / "06_POINCONNEMENT_FINAL.dxf",
-        )
-    except Exception as exc:
-        errors.append({
-            "livrable": "06_POINCONNEMENT_FINAL.dxf",
-            "error": f"Livrable optionnel non genere : {exc}",
-        })
 
     # =====================================================
     # RAPPORTS
@@ -308,13 +249,10 @@ def generate_project_package_zip(
             "----------------------------------------------------",
             "CONTENU DU DOSSIER",
             "----------------------------------------------------",
-            "01_DXF      : plans et détails graphiques (cadrés à l'ouverture)",
-            "              01_PLAN_EXECUTION_FONDATIONS.dxf",
-            "              02_COUPES_DETAILLEES_FONDATIONS.dxf",
-            "              03_ANCRAGES_RECOUVREMENTS.dxf",
-            "              04_ATTENTES_POTEAUX.dxf",
-            "              05_FERRAILLAGE_PRELIMINAIRE.dxf",
-            "              06_POINCONNEMENT_FINAL.dxf",
+            "01_DXF      : plan d'exécution unique (cadré à l'ouverture)",
+            "              PLAN_EXECUTION_FONDATIONS.dxf",
+            "              (plan + ferraillage + attentes + longrines/chaînages",
+            "               + poutres de redressement/liaison + détails + coupes)",
             "02_RAPPORTS : note de calcul (MD / DOCX / PDF)",
             "03_METRE    : métré estimatif (CSV)",
             "04_JSON     : rapports de contrôle et données techniques",
