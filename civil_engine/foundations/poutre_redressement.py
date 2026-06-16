@@ -109,13 +109,16 @@ def design_strap_beams(
             # SE sans excentricite mesurable : pas de PR utile
             continue
 
-        # Direction "vers l'interieur" = oppose a l'excentricite (le poteau est
-        # en rive, la semelle est decalee vers l'interieur).
-        inx, iny = -ex / e, -ey / e
+        # Direction "vers l'interieur" figee sur l'axe DOMINANT de l'excentricite,
+        # pour obtenir une PR la plus perpendiculaire possible (alignee X ou Y)
+        # plutot qu'une diagonale.
+        if abs(ex) >= abs(ey):
+            sdx, sdy = (-1.0 if ex > 0 else 1.0), 0.0   # horizontale
+        else:
+            sdx, sdy = 0.0, (-1.0 if ey > 0 else 1.0)   # verticale
 
-        # Semelle d'ancrage : la plus proche dans la direction interieure.
-        # On privilegie les semelles situees "vers l'interieur" (produit
-        # scalaire positif) ; repli sur la plus proche toutes directions.
+        # Semelle d'ancrage : la mieux alignee sur cet axe et la plus proche,
+        # dans la direction interieure. score = avancee + penalite*decalage perp.
         anchor = None
         best_score = None
         fallback = None
@@ -129,10 +132,13 @@ def design_strap_beams(
                 continue
             if best_fd is None or d < best_fd:
                 best_fd, fallback = d, a
-            dot = (dx * inx + dy * iny)
-            if dot > 0:  # situee vers l'interieur
-                if best_score is None or d < best_score:
-                    best_score, anchor = d, a
+            along = dx * sdx + dy * sdy          # avancee le long de l'axe interieur
+            perp = abs(dx * (-sdy) + dy * sdx)   # decalage perpendiculaire (diagonalite)
+            if along <= 0:                       # doit aller vers l'interieur
+                continue
+            score = along + 3.0 * perp           # privilegie alignement (perp faible) et proximite
+            if best_score is None or score < best_score:
+                best_score, anchor = score, a
         if anchor is None:
             anchor = fallback
         if anchor is None:
