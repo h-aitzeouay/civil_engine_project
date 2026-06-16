@@ -117,12 +117,13 @@ def design_strap_beams(
         else:
             sdx, sdy = 0.0, (-1.0 if ey > 0 else 1.0)   # verticale
 
-        # Semelle d'ancrage : la mieux alignee sur cet axe et la plus proche,
-        # dans la direction interieure. score = avancee + penalite*decalage perp.
+        # Semelle d'ancrage : uniquement si une semelle interieure est atteignable
+        # ORTHOGONALEMENT vers l'interieur (perp faible). On ne genere PAS de PR
+        # diagonale : les semelles d'angle, sans ancrage orthogonal, sont
+        # stabilisees par le L des longrines peripheriques.
         anchor = None
         best_score = None
-        fallback = None
-        best_fd = None
+        ortho_tol = 0.40  # tolerance perp/along (~22 deg) pour rester "perpendiculaire"
         for a in anchor_candidates:
             if a.get("id") == f.get("id"):
                 continue
@@ -130,20 +131,21 @@ def design_strap_beams(
             d = math.hypot(dx, dy)
             if d < 1e-6:
                 continue
-            if best_fd is None or d < best_fd:
-                best_fd, fallback = d, a
             along = dx * sdx + dy * sdy          # avancee le long de l'axe interieur
             perp = abs(dx * (-sdy) + dy * sdx)   # decalage perpendiculaire (diagonalite)
             if along <= 0:                       # doit aller vers l'interieur
                 continue
-            score = along + 3.0 * perp           # privilegie alignement (perp faible) et proximite
+            if perp > ortho_tol * along:         # trop diagonal -> rejete
+                continue
+            score = along + 3.0 * perp
             if best_score is None or score < best_score:
                 best_score, anchor = score, a
         if anchor is None:
-            anchor = fallback
-        if anchor is None:
-            warnings.append({"code": "NO_ANCHOR",
-                             "message": f"Aucune semelle d'ancrage pour la PR de {f.get('id')}."})
+            # Pas d'ancrage orthogonal (cas des coins) : liaison assuree par
+            # l'anneau de longrines peripheriques, pas de PR diagonale.
+            warnings.append({"code": "NO_ORTHO_ANCHOR_TIE_BY_LONGRINE",
+                             "message": f"{f.get('id')} : pas de semelle interieure orthogonale ; "
+                                        f"liaison assuree par les longrines peripheriques (pas de PR diagonale)."})
             continue
 
         # Geometrie PR : du poteau de rive vers le centre de la semelle d'ancrage
