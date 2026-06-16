@@ -57,6 +57,8 @@ def ensure_execution_layers(doc) -> None:
         "ARM_FILANTE_REP": 30,
         "POUTRE_REDRESSEMENT": 30,
         "ARM_PR": 2,
+        "LONGRINE": 4,
+        "ARM_LONGRINE": 2,
     }
 
     for name, color in layers.items():
@@ -909,6 +911,35 @@ def draw_strap_beams_on_plan(msp, strap_design, occupied=None):
             add_text(msp, lines[0], mx, my + 0.10, 0.09, "TEXTES")
 
 
+def draw_perimeter_ties_on_plan(msp, tie_design, occupied=None):
+    """Dessine les longrines de liaison peripheriques (contour + axe + aciers)."""
+    import math as _m
+    if not tie_design:
+        return
+    if occupied is None:
+        occupied = []
+    for t in tie_design.get("ties", []):
+        x1, y1 = t["start"]
+        x2, y2 = t["end"]
+        b = float(t["b_m"])
+        dx, dy = x2 - x1, y2 - y1
+        L = _m.hypot(dx, dy)
+        if L < 1e-6:
+            continue
+        ux, uy = dx / L, dy / L
+        nx, ny = -uy, ux
+        hw = b / 2.0
+        p = [(x1 + nx * hw, y1 + ny * hw), (x2 + nx * hw, y2 + ny * hw),
+             (x2 - nx * hw, y2 - ny * hw), (x1 - nx * hw, y1 - ny * hw)]
+        msp.add_lwpolyline(p, close=True, dxfattribs={"layer": "LONGRINE"})
+        off = hw - 0.03
+        for s in (off, -off):
+            msp.add_line((x1 + nx * s, y1 + ny * s), (x2 + nx * s, y2 + ny * s),
+                         dxfattribs={"layer": "ARM_LONGRINE"})
+        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        add_text(msp, f"{t['id']} {b:.2f}x{t['h_m']:.2f}", mx - 0.30, my + 0.04, 0.08, "TEXTES")
+
+
 def generate_execution_foundation_dxf(
     model: dict[str, Any],
     strategy_report: dict[str, Any],
@@ -961,6 +992,15 @@ def generate_execution_foundation_dxf(
     draw_reinforcement(msp, strategy_report, reinforcement_report, occupied)
     draw_strip_footings_on_plan(msp, strip_design, strip_interference, occupied)
     draw_starter_bars_on_plan(msp, model, starter_diameter_mm)
+
+    # Longrines de liaison peripheriques (chainage) entre semelles adjacentes.
+    tie_design = None
+    try:
+        from civil_engine.foundations.longrines import design_perimeter_ties
+        tie_design = design_perimeter_ties(model=model, strategy_report=strategy_report)
+        draw_perimeter_ties_on_plan(msp, tie_design, occupied)
+    except Exception:
+        tie_design = None  # le plan reste valide sans longrines
 
     # Poutres de redressement (PR) pour les semelles excentrees.
     strap_design = None
