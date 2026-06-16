@@ -141,3 +141,105 @@ def design_perimeter_ties(
         "ties": ties,
         "totals": totals,
     }
+
+
+def design_central_ties(
+    model: dict[str, Any],
+    strategy_report: dict[str, Any],
+    edge_margin_m: float = 1.50,
+    b_m: float = 0.30,
+    h_m: float = 0.45,
+    fyk_mpa: float = 500.0,
+    gamma_s: float = 1.15,
+    phi_long_mm: float = 14.0,
+    n_long_bars: int = 4,
+) -> dict[str, Any]:
+    """
+    Poutres de liaison entre les semelles INTERIEURES (non peripheriques), qui
+    ne sont pas reprises par l'anneau de longrines. Relie les semelles
+    interieures entre elles (chaine par plus proche voisin). Pour deux semelles
+    centrales -> une seule poutre de liaison.
+    """
+    final_foundations = [f for f in strategy_report.get("final_foundations", [])
+                         if f.get("cx") is not None and f.get("cy") is not None]
+
+    emp = None
+    for level in model.get("levels", []):
+        if level.get("name") == "FONDATION" and level.get("footprints"):
+            emp = level["footprints"][0]["bbox"]
+            break
+    if emp is None:
+        return {"status": "WARNING", "message": "Emprise FONDATION introuvable.",
+                "ties": [], "totals": {"count": 0}}
+
+    x0, y0, x1, y1 = emp["xmin"], emp["ymin"], emp["xmax"], emp["ymax"]
+
+    def is_interior(f):
+        cx, cy = float(f["cx"]), float(f["cy"])
+        near_edge = (abs(cx - x0) <= edge_margin_m or abs(cx - x1) <= edge_margin_m
+                     or abs(cy - y0) <= edge_margin_m or abs(cy - y1) <= edge_margin_m)
+        return not near_edge
+
+    interior = [f for f in final_foundations if is_interior(f)]
+
+    as_long = _bar_area_cm2(phi_long_mm, n_long_bars)
+    bars_label = f"{n_long_bars}HA{int(phi_long_mm)}"
+
+    ties: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    counter = 0
+
+    # Chaine par plus proche voisin entre semelles interieures.
+    for a in interior:
+        best = None
+        best_d = None
+        for b in interior:
+            if b is a:
+                continue
+            d = math.hypot(float(b["cx"]) - float(a["cx"]), float(b["cy"]) - float(a["cy"]))
+            if best_d is None or d < best_d:
+                best_d, best = d, b
+        if best is None:
+            continue
+        key = tuple(sorted((a["id"], best["id"])))
+        if key in seen:
+            continue
+        seen.add(key)
+        ax, ay = float(a["cx"]), float(a["cy"])
+        bx, by = float(best["cx"]), float(best["cy"])
+        L = round(math.hypot(bx - ax, by - ay), 3)
+        if L < 1e-3:
+            continue
+        counter += 1
+        ties.append({
+            "id": f"PL{counter:02d}",
+            "footing_a": a["id"], "footing_b": best["id"],
+            "start": [round(ax, 4), round(ay, 4)],
+            "end": [round(bx, 4), round(by, 4)],
+            "length_m": L,
+            "b_m": b_m, "h_m": h_m,
+            "As_min_cm2": as_long,
+            "bars_long": bars_label,
+            "stirrups": "HA8 e=15 cm",
+            "concrete_m3": round(b_m * h_m * L, 3),
+            "steel_kg": round(n_long_bars * (phi_long_mm / 1000.0) ** 2 * PI / 4.0
+                              * L * 7850.0, 2),
+            "status": "PRELIMINARY",
+            "note": "Poutre de liaison entre semelles interieures (non reprises par l'anneau peripherique).",
+        })
+
+    totals = {
+        "count": len(ties),
+        "concrete_m3": round(sum(t["concrete_m3"] for t in ties), 3),
+        "steel_kg": round(sum(t["steel_kg"] for t in ties), 2),
+        "total_length_m": round(sum(t["length_m"] for t in ties), 2),
+    }
+    return {
+        "status": "OK" if ties else "WARNING",
+        "method": "poutres_liaison_centrales_v1",
+        "hypotheses": {"edge_margin_m": edge_margin_m, "b_m": b_m, "h_m": h_m,
+                       "bars_long": bars_label,
+                       "note": "Liaison des semelles interieures. Section/ferraillage a confirmer."},
+        "ties": ties,
+        "totals": totals,
+    }

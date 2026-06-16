@@ -59,6 +59,8 @@ def ensure_execution_layers(doc) -> None:
         "ARM_PR": 2,
         "LONGRINE": 4,
         "ARM_LONGRINE": 2,
+        "POUTRE_LIAISON": 3,
+        "ARM_LIAISON": 2,
     }
 
     for name, color in layers.items():
@@ -911,8 +913,10 @@ def draw_strap_beams_on_plan(msp, strap_design, occupied=None):
             add_text(msp, lines[0], mx, my + 0.10, 0.09, "TEXTES")
 
 
-def draw_perimeter_ties_on_plan(msp, tie_design, occupied=None):
-    """Dessine les longrines de liaison peripheriques (contour + axe + aciers)."""
+def draw_perimeter_ties_on_plan(msp, tie_design, occupied=None,
+                                layer="LONGRINE", arm_layer="ARM_LONGRINE"):
+    """Dessine des poutres de liaison (contour + axe + aciers). Sert aux longrines
+    peripheriques et a la poutre de liaison centrale (calques parametrables)."""
     import math as _m
     if not tie_design:
         return
@@ -931,11 +935,11 @@ def draw_perimeter_ties_on_plan(msp, tie_design, occupied=None):
         hw = b / 2.0
         p = [(x1 + nx * hw, y1 + ny * hw), (x2 + nx * hw, y2 + ny * hw),
              (x2 - nx * hw, y2 - ny * hw), (x1 - nx * hw, y1 - ny * hw)]
-        msp.add_lwpolyline(p, close=True, dxfattribs={"layer": "LONGRINE"})
+        msp.add_lwpolyline(p, close=True, dxfattribs={"layer": layer})
         off = hw - 0.03
         for s in (off, -off):
             msp.add_line((x1 + nx * s, y1 + ny * s), (x2 + nx * s, y2 + ny * s),
-                         dxfattribs={"layer": "ARM_LONGRINE"})
+                         dxfattribs={"layer": arm_layer})
         mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
         add_text(msp, f"{t['id']} {b:.2f}x{t['h_m']:.2f}", mx - 0.30, my + 0.04, 0.08, "TEXTES")
 
@@ -1001,6 +1005,16 @@ def generate_execution_foundation_dxf(
         draw_perimeter_ties_on_plan(msp, tie_design, occupied)
     except Exception:
         tie_design = None  # le plan reste valide sans longrines
+
+    # Poutres de liaison entre semelles interieures (les deux centrales).
+    central_tie_design = None
+    try:
+        from civil_engine.foundations.longrines import design_central_ties
+        central_tie_design = design_central_ties(model=model, strategy_report=strategy_report)
+        draw_perimeter_ties_on_plan(msp, central_tie_design, occupied,
+                                    layer="POUTRE_LIAISON", arm_layer="ARM_LIAISON")
+    except Exception:
+        central_tie_design = None  # le plan reste valide sans poutre de liaison centrale
 
     # Poutres de redressement (PR) pour les semelles excentrees.
     strap_design = None

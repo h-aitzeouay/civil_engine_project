@@ -37,7 +37,8 @@ def lineweight_for_layer(name: str) -> int | None:
     # Aciers
     if n.startswith("ARM") or "ATTENTES" in n or n == "ARMATURES" or "RECOUVREMENT" in n:
         if ("PRINC" in n or "INF" in n or "SUP" in n or n == "ARMATURES"
-                or "ATTENTES" in n or n.endswith("_PR")):
+                or "ATTENTES" in n or n.endswith("_PR")
+                or "LONGRINE" in n or "LIAISON" in n):
             return LW_ARM_PRINC
         return LW_FIN
     if "CADRES" in n:
