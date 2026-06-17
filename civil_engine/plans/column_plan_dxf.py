@@ -25,7 +25,7 @@ def _ensure_layers(doc) -> None:
     layers = {
         "EMPRISE": 7, "POTEAUX": 7, "AXES": 2, "ARM_POTEAU": 1, "CADRES_POTEAUX": 6,
         "TEXTES": 7, "TABLEAU_POTEAUX": 7, "DETAILS_TITRES": 7, "DETAILS_SECTIONS": 3,
-        "CARTOUCHE": 7,
+        "CARTOUCHE": 7, "NOTES_POTEAUX": 1,
     }
     for name, color in layers.items():
         if name not in doc.layers:
@@ -178,6 +178,22 @@ def generate_column_plan_dxf(
 
     # Tableau des poteaux a droite
     _draw_column_table(msp, design.get("columns", []), xmax + 2.0, ty - 0.5)
+
+    # Notes / reserves (predimensionnement)
+    nx, ny = xmax + 2.0, ty - 0.5 - 0.205 * (len(design.get("columns", [])) + 4)
+    add_text(msp, "NOTES & RESERVES (PREDIMENSIONNEMENT) :", nx, ny, 0.13, "NOTES_POTEAUX")
+    notes = [
+        "- Materiaux : beton fc28=25 MPa, acier FeE500, enrobage 25 mm.",
+        "- Calcul de section EC2 (interaction N-M biaxiale) + excentricite minimale.",
+        "- Cadres selon RPS 2000 : zone critique L.C=max(He/6, dim, 45cm).",
+        "- Effets du 2e ordre a verifier (poteaux elances).",
+        "- Dispositions sismiques detaillees (RPS 2000 / EC8) a completer.",
+        "- Verification reglementaire finale par ingenieur structure obligatoire.",
+    ]
+    yy = ny - 0.26
+    for n in notes:
+        add_text(msp, n, nx, yy, 0.092, "NOTES_POTEAUX")
+        yy -= 0.18
 
     # Coupe type + elevation (poteau le plus charge)
     if design.get("columns"):

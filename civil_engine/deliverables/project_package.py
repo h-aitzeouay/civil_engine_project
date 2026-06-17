@@ -161,6 +161,28 @@ def generate_project_package_zip(
         output_path=dxf_dir / "PLAN_COFFRAGE_FONDATIONS.dxf",
     )
 
+    # Plan de ferraillage des poteaux (superstructure) : calcul EC2 + RPS 2000.
+    column_design = None
+    try:
+        from civil_engine.design.column_design import design_columns
+        from civil_engine.plans.column_plan_dxf import generate_column_plan_dxf
+        column_design = design_columns(
+            model=model, fck_mpa=fck_mpa, fyk_mpa=fyk_mpa, gamma_s=gamma_s,
+            storey_height_m=storey_height_m, g_floor_kN_m2=g_floor_kN_m2,
+            q_floor_kN_m2=q_floor_kN_m2, g_terrace_kN_m2=g_terrace_kN_m2,
+            q_terrace_kN_m2=q_terrace_kN_m2)
+        safe_generate(
+            "PLAN_FERRAILLAGE_POTEAUX.dxf",
+            generate_column_plan_dxf,
+            errors,
+            model=model,
+            design=column_design,
+            output_path=dxf_dir / "PLAN_FERRAILLAGE_POTEAUX.dxf",
+        )
+    except Exception as exc:
+        errors.append({"livrable": "PLAN_FERRAILLAGE_POTEAUX.dxf",
+                       "error": f"Plan poteaux non genere : {exc}"})
+
     # =====================================================
     # RAPPORTS
     # =====================================================
@@ -208,6 +230,8 @@ def generate_project_package_zip(
     write_json(anchorage_report, json_dir / "05_anchorage_report.json")
     write_json(boq_report, json_dir / "06_boq_report.json")
     write_json(calculation_report, json_dir / "07_calculation_report.json")
+    if column_design is not None:
+        write_json(column_design, json_dir / "08_column_design.json")
 
     write_json(
         {
@@ -267,6 +291,8 @@ def generate_project_package_zip(
             "              PLAN_EXECUTION_FONDATIONS.dxf",
             "                (ferraillage + attentes + longrines/chaînages",
             "                 + poutres de redressement/liaison + détails + coupes)",
+            "              PLAN_FERRAILLAGE_POTEAUX.dxf",
+            "                (poteaux : sections, aciers, cadres RPS 2000, élévation)",
             "02_RAPPORTS : note de calcul (MD / DOCX / PDF)",
             "03_METRE    : métré estimatif (CSV)",
             "04_JSON     : rapports de contrôle et données techniques",
