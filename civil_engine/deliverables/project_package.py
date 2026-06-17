@@ -149,6 +149,18 @@ def generate_project_package_zip(
         strip_wall_thickness_m=wall_thickness_m,
     )
 
+    # Plan de coffrage (geometrie beton + cotation, sans ferraillage) : document
+    # distinct du plan d'execution, selon le decoupage usuel coffrage/ferraillage.
+    from civil_engine.plans.coffrage_foundation_dxf import generate_coffrage_foundation_dxf
+    safe_generate(
+        "PLAN_COFFRAGE_FONDATIONS.dxf",
+        generate_coffrage_foundation_dxf,
+        errors,
+        model=model,
+        strategy_report=strategy_report,
+        output_path=dxf_dir / "PLAN_COFFRAGE_FONDATIONS.dxf",
+    )
+
     # =====================================================
     # RAPPORTS
     # =====================================================
@@ -249,10 +261,12 @@ def generate_project_package_zip(
             "----------------------------------------------------",
             "CONTENU DU DOSSIER",
             "----------------------------------------------------",
-            "01_DXF      : plan d'exécution unique (cadré à l'ouverture)",
+            "01_DXF      : plans (cadrés à l'ouverture)",
+            "              PLAN_COFFRAGE_FONDATIONS.dxf",
+            "                (géométrie béton + cotation, sans ferraillage)",
             "              PLAN_EXECUTION_FONDATIONS.dxf",
-            "              (plan + ferraillage + attentes + longrines/chaînages",
-            "               + poutres de redressement/liaison + détails + coupes)",
+            "                (ferraillage + attentes + longrines/chaînages",
+            "                 + poutres de redressement/liaison + détails + coupes)",
             "02_RAPPORTS : note de calcul (MD / DOCX / PDF)",
             "03_METRE    : métré estimatif (CSV)",
             "04_JSON     : rapports de contrôle et données techniques",
