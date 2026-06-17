@@ -510,7 +510,7 @@ def draw_attentes_detail_panel(
 
     add_text(msp, "4 attentes HA d'angle", px + side + 0.25, py + side - 0.05, 0.082, "DETAILS_ATTENTES")
     add_text(msp, "Cadre + epingles", px + side + 0.25, py + side - 0.30, 0.082, "CADRES_POTEAUX")
-    add_text(msp, "Enrobage c", px + side + 0.25, py + side - 0.55, 0.082, "DETAILS_ATTENTES")
+    add_text(msp, "Enrobage = 25 mm", px + side + 0.25, py + side - 0.55, 0.082, "DETAILS_ATTENTES")
 
     # ============ Coupe type avec coupure en hauteur ============
     sx = x + 5.70
@@ -569,6 +569,7 @@ def draw_attentes_detail_panel(
             "- Attentes avec retour en L + couture du mandrin.",
             "- Recouvrement L0 = 60 phi avec les barres du poteau.",
             "- Attentes centrees dans le poteau effectif.",
+            "- Enrobage = 25 mm.",
         ],
         x + 10.20,
         y + 3.75,
@@ -983,10 +984,22 @@ def draw_strap_beams_on_plan(msp, strap_design, occupied=None):
             msp.add_line((x1 + nx * s, y1 + ny * s), (x2 + nx * s, y2 + ny * s),
                          dxfattribs={"layer": "ARM_PR"})
 
+        # Cadres (HA8) : traits transversaux le long de la poutre (espacement
+        # d'affichage ~0.35 m pour rester lisible au 1/50).
+        disp_spacing = 0.35
+        n_cad = max(int(L / disp_spacing), 1)
+        for i in range(1, n_cad):
+            t = i * disp_spacing
+            cxp, cyp = x1 + ux * t, y1 + uy * t
+            msp.add_line((cxp + nx * off, cyp + ny * off),
+                         (cxp - nx * off, cyp - ny * off),
+                         dxfattribs={"layer": "CADRES_POTEAUX"})
+
         # Annotation a leader
         mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
         lines = [f"{pr['id']}  {b:.2f}x{pr['h_m']:.2f}",
-                 f"Sup {pr['bars_top']} / Inf {pr['bars_bottom']}"]
+                 f"Sup {pr['bars_top']} / Inf {pr['bars_bottom']}",
+                 "Cadres HA8 e=15"]
         bb = {"xmin": min(x1, x2), "xmax": max(x1, x2),
               "ymin": min(y1, y2), "ymax": max(y1, y2)}
         try:
