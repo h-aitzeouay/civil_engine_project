@@ -207,6 +207,17 @@ def generate_project_package_zip(
         output_path=reports_dir / "NOTE_CALCUL_FONDATIONS.pdf",
     )
 
+    # Note de calcul poteaux (superstructure)
+    if column_design is not None:
+        from civil_engine.reports.column_calculation_report import export_column_report_md
+        safe_generate(
+            "NOTE_CALCUL_POTEAUX.md",
+            export_column_report_md,
+            errors,
+            design=column_design,
+            output_path=reports_dir / "NOTE_CALCUL_POTEAUX.md",
+        )
+
     # =====================================================
     # METRE
     # =====================================================
