@@ -463,6 +463,26 @@ def draw_anchorage_detail_panel(
         "NOTES_EXECUTION",
     )
 
+def _rounded_rect(msp, x0, y0, x1, y1, r, layer):
+    """Rectangle a coins arrondis (4 segments + 4 arcs)."""
+    msp.add_line((x0 + r, y0), (x1 - r, y0), dxfattribs={"layer": layer})
+    msp.add_line((x1, y0 + r), (x1, y1 - r), dxfattribs={"layer": layer})
+    msp.add_line((x1 - r, y1), (x0 + r, y1), dxfattribs={"layer": layer})
+    msp.add_line((x0, y1 - r), (x0, y0 + r), dxfattribs={"layer": layer})
+    msp.add_arc((x1 - r, y0 + r), r, 270, 360, dxfattribs={"layer": layer})
+    msp.add_arc((x1 - r, y1 - r), r, 0, 90, dxfattribs={"layer": layer})
+    msp.add_arc((x0 + r, y1 - r), r, 90, 180, dxfattribs={"layer": layer})
+    msp.add_arc((x0 + r, y0 + r), r, 180, 270, dxfattribs={"layer": layer})
+
+
+def _break_symbol(msp, xl, xr, yb, layer):
+    """Petit zigzag horizontal symbolisant une coupure (rupture de hauteur)."""
+    xm = (xl + xr) / 2.0
+    pts = [(xl, yb), (xm - 0.12, yb + 0.10), (xm + 0.12, yb - 0.10), (xr, yb)]
+    for i in range(len(pts) - 1):
+        add_line(msp, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], layer)
+
+
 def draw_attentes_detail_panel(
     msp,
     x: float,
@@ -472,78 +492,88 @@ def draw_attentes_detail_panel(
     h = 5.0
     draw_panel(msp, "D2 - DETAILS ATTENTES POTEAUX ET CADRES", x, y, w, h, "DETAILS_TITRES")
 
-    # Vue en plan
-    px = x + 0.65
-    py = y + 1.00
-    pw = 2.50
-    ph = 2.50
-
-    add_text(msp, "Vue en plan du poteau", px, y + h - 0.80, 0.105, "DETAILS_ATTENTES")
-    add_rect(msp, px, py, px + pw, py + ph, "DETAILS_ATTENTES")
-
-    # Cadre interieur
-    add_rect(msp, px + 0.50, py + 0.50, px + 2.00, py + 2.00, "CADRES_POTEAUX")
-
-    # Attentes
-    points = [
-        (px + 0.25, py + 0.25),
-        (px + 2.25, py + 0.25),
-        (px + 2.25, py + 2.25),
-        (px + 0.25, py + 2.25),
-        (px + 1.25, py + 0.25),
-        (px + 1.25, py + 2.25),
+    # ============ Vue en plan du poteau (section type, coins arrondis) ============
+    px, py, side = x + 0.80, y + 1.30, 2.10
+    add_text(msp, "Vue en plan du poteau", x + 0.40, y + h - 0.80, 0.105, "DETAILS_ATTENTES")
+    _rounded_rect(msp, px, py, px + side, py + side, 0.16, "DETAILS_ATTENTES")  # contour beton
+    c = 0.20  # enrobage
+    _rounded_rect(msp, px + c, py + c, px + side - c, py + side - c, 0.12, "CADRES_POTEAUX")  # cadre
+    # 4 barres d'angle
+    corners = [
+        (px + c + 0.12, py + c + 0.12), (px + side - c - 0.12, py + c + 0.12),
+        (px + side - c - 0.12, py + side - c - 0.12), (px + c + 0.12, py + side - c - 0.12),
     ]
+    for bx, by in corners:
+        add_circle(msp, bx, by, 0.06, "ATTENTES_POTEAUX")
+    # crochet de fermeture du cadre (petit trait diagonal a un angle)
+    add_line(msp, px + c + 0.05, py + c + 0.05, px + c + 0.32, py + c + 0.32, "CADRES_POTEAUX")
 
-    for cx, cy in points:
-        add_circle(msp, cx, cy, 0.055, "ATTENTES_POTEAUX")
+    add_text(msp, "4 attentes HA d'angle", px + side + 0.25, py + side - 0.05, 0.082, "DETAILS_ATTENTES")
+    add_text(msp, "Cadre + epingles", px + side + 0.25, py + side - 0.30, 0.082, "CADRES_POTEAUX")
+    add_text(msp, "Enrobage c", px + side + 0.25, py + side - 0.55, 0.082, "DETAILS_ATTENTES")
 
-    add_text(msp, "Attentes HA", px + 2.80, py + 2.20, 0.085, "DETAILS_ATTENTES")
-    add_text(msp, "Cadre ferme", px + 2.80, py + 1.95, 0.085, "CADRES_POTEAUX")
-    add_text(msp, "Enrobage c", px + 2.80, py + 1.70, 0.085, "DETAILS_ATTENTES")
+    # ============ Coupe type avec coupure en hauteur ============
+    sx = x + 5.70
+    base_y = y + 0.75
+    add_text(msp, "Coupe type attente sur semelle", sx - 0.55, y + h - 0.80, 0.105, "DETAILS_ATTENTES")
 
-    # Coupe type
-    cx = x + 6.00
-    cy = y + 0.80
+    # Semelle + beton de proprete
+    add_rect(msp, sx - 0.65, base_y, sx + 1.45, base_y + 0.55, "DETAILS_ATTENTES")
+    add_line(msp, sx - 0.65, base_y - 0.08, sx + 1.45, base_y - 0.08, "DETAILS_ATTENTES")
 
-    add_text(msp, "Coupe type poteau sur fondation", cx, y + h - 0.80, 0.105, "DETAILS_ATTENTES")
+    col_l, col_r = sx - 0.05, sx + 0.85
+    break_y = base_y + 2.50      # niveau de la coupure
+    top_y = base_y + 3.05
 
-    # Fondation
-    add_rect(msp, cx, cy, cx + 3.20, cy + 0.55, "DETAILS_ATTENTES")
+    # Faces du poteau jusqu'a la coupure
+    add_line(msp, col_l, base_y + 0.55, col_l, break_y, "DETAILS_ATTENTES")
+    add_line(msp, col_r, base_y + 0.55, col_r, break_y, "DETAILS_ATTENTES")
+    _break_symbol(msp, col_l, col_r, break_y, "DETAILS_ATTENTES")
+    # Reprise du poteau au-dessus de la coupure
+    add_line(msp, col_l, break_y + 0.15, col_l, top_y, "DETAILS_ATTENTES")
+    add_line(msp, col_r, break_y + 0.15, col_r, top_y, "DETAILS_ATTENTES")
 
-    # Poteau
-    col_x1 = cx + 1.15
-    col_x2 = cx + 2.05
-    col_y1 = cy + 0.55
-    col_y2 = cy + 3.30
+    # Attentes avec retour en L dans la semelle
+    a_l, a_r = col_l + 0.18, col_r - 0.18
+    foot_bottom = base_y + 0.10
+    add_line(msp, a_l, foot_bottom, a_l, break_y - 0.10, "ATTENTES_POTEAUX")
+    add_line(msp, a_l, foot_bottom, a_l + 0.32, foot_bottom, "ATTENTES_POTEAUX")  # retour L
+    add_line(msp, a_r, foot_bottom, a_r, break_y - 0.10, "ATTENTES_POTEAUX")
+    add_line(msp, a_r, foot_bottom, a_r - 0.32, foot_bottom, "ATTENTES_POTEAUX")  # retour L
+    # Barres longues du poteau (recouvrement) au-dessus, legerement decalees
+    add_line(msp, a_l + 0.07, break_y - 0.70, a_l + 0.07, top_y, "ATTENTES_POTEAUX")
+    add_line(msp, a_r - 0.07, break_y - 0.70, a_r - 0.07, top_y, "ATTENTES_POTEAUX")
 
-    add_rect(msp, col_x1, col_y1, col_x2, col_y2, "DETAILS_ATTENTES")
+    # Cadres : e=7 cm rapproches dans la semelle, puis e variable au-dessus
+    yy = base_y + 0.14
+    while yy < base_y + 0.52:
+        add_line(msp, a_l, yy, a_r, yy, "CADRES_POTEAUX")
+        yy += 0.13
+    yy = base_y + 0.78
+    while yy < break_y - 0.15:
+        add_line(msp, col_l + 0.06, yy, col_r - 0.06, yy, "CADRES_POTEAUX")
+        yy += 0.28
 
-    # Attentes verticales
-    add_line(msp, col_x1 + 0.20, cy + 0.12, col_x1 + 0.20, col_y2, "ATTENTES_POTEAUX")
-    add_line(msp, col_x2 - 0.20, cy + 0.12, col_x2 - 0.20, col_y2, "ATTENTES_POTEAUX")
+    add_detail_dimension_vertical(msp, col_r + 0.40, foot_bottom, break_y - 0.10, "haut. attentes")
+    add_detail_dimension_vertical(msp, col_r + 0.85, break_y - 0.70, top_y, "L0 = 60 phi")
+    add_text(msp, "Cadres e=7cm dans la semelle,", sx - 0.60, base_y - 0.30, 0.072, "CADRES_POTEAUX")
+    add_text(msp, "puis e variable (ferraillage poteau)", sx - 0.60, base_y - 0.44, 0.072, "CADRES_POTEAUX")
 
-    # Cadres
-    ycad = col_y1 + 0.25
-    while ycad <= col_y2 - 0.20:
-        add_line(msp, col_x1 + 0.08, ycad, col_x2 - 0.08, ycad, "CADRES_POTEAUX")
-        ycad += 0.32
-
-    add_detail_dimension_vertical(msp, cx + 3.45, col_y1, col_y1 + 0.95, "zone serree")
-    add_detail_dimension_vertical(msp, cx + 3.75, col_y1, col_y2, "hauteur poteau")
-
+    # ============ Indications ============
     add_multiline_text(
         msp,
         [
             "Indications :",
-            "- Cadres rapproches en pied de poteau.",
-            "- Espacement courant au-dessus de la zone critique.",
+            "- Cadres rapproches e=7cm dans la semelle.",
+            "- Espacement variable au-dessus (selon poteau).",
+            "- Attentes avec retour en L + couture du mandrin.",
+            "- Recouvrement L0 = 60 phi avec les barres du poteau.",
             "- Attentes centrees dans le poteau effectif.",
-            "- Enrobage et recouvrements a verifier.",
         ],
-        x + 10.30,
-        y + 3.55,
-        0.085,
-        0.18,
+        x + 10.20,
+        y + 3.75,
+        0.080,
+        0.165,
         "DETAILS_ATTENTES",
     )
 
