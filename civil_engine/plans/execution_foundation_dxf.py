@@ -996,22 +996,36 @@ def draw_strap_beams_on_plan(msp, strap_design, occupied=None):
             msp.add_line((x1 + nx * s, y1 + ny * s), (x2 + nx * s, y2 + ny * s),
                          dxfattribs={"layer": "ARM_PR"})
 
-        # Cadres (HA8) : traits transversaux le long de la poutre (espacement
-        # d'affichage ~0.35 m pour rester lisible au 1/50).
-        disp_spacing = 0.35
-        n_cad = max(int(L / disp_spacing), 1)
-        for i in range(1, n_cad):
-            t = i * disp_spacing
+        # Cadres (HA8) repartis selon RPS 2000 : resserres en zone critique (2h
+        # depuis chaque noeud), plus espaces en zone courante. Espacements
+        # d'affichage majores pour rester lisibles au 1/50, le label donne les
+        # valeurs reelles.
+        lc = float(pr.get("stirrup_zone_critique_m", 2.0 * float(pr["h_m"])))
+        lc = min(lc, (L - 0.2) / 2.0)
+        disp_crit = max(float(pr.get("stirrup_spacing_crit_m", 0.10)), 0.18)
+        disp_cour = max(float(pr.get("stirrup_spacing_cour_m", 0.20)), 0.38)
+
+        def _cadre(t):
             cxp, cyp = x1 + ux * t, y1 + uy * t
             msp.add_line((cxp + nx * off, cyp + ny * off),
                          (cxp - nx * off, cyp - ny * off),
                          dxfattribs={"layer": "CADRES_POTEAUX"})
 
+        t = 0.10
+        while t < lc:                      # zone critique gauche
+            _cadre(t); t += disp_crit
+        t = lc                             # zone courante (milieu)
+        while t < L - lc:
+            _cadre(t); t += disp_cour
+        t = L - lc                         # zone critique droite
+        while t < L - 0.10:
+            _cadre(t); t += disp_crit
+
         # Annotation a leader
         mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
         lines = [f"{pr['id']}  {b:.2f}x{pr['h_m']:.2f}",
                  f"Sup {pr['bars_top']} / Inf {pr['bars_bottom']}",
-                 "Cadres HA8 e=15"]
+                 f"Cadres {pr.get('stirrups', 'HA8')}"]
         bb = {"xmin": min(x1, x2), "xmax": max(x1, x2),
               "ymin": min(y1, y2), "ymax": max(y1, y2)}
         try:
@@ -1178,8 +1192,11 @@ def generate_execution_foundation_dxf(
                                    "top": "2HA12", "bot": "2HA12", "stirrup": "HA8 e=15"})
         if strap_design and strap_design.get("strap_beams"):
             s = strap_design["strap_beams"][0]
+            _sc = int(float(s.get("stirrup_spacing_crit_m", 0.10)) * 100)
+            _sco = int(float(s.get("stirrup_spacing_cour_m", 0.20)) * 100)
             beams_sections.append({"title": f"Redressement {s['id']}", "b": s["b_m"], "h": s["h_m"],
-                                   "top": s["bars_top"], "bot": s["bars_bottom"], "stirrup": "HA8 e=15"})
+                                   "top": s["bars_top"], "bot": s["bars_bottom"],
+                                   "stirrup": f"HA8 e={_sc}/{_sco}"})
         if central_tie_design and central_tie_design.get("ties"):
             c = central_tie_design["ties"][0]
             beams_sections.append({"title": f"Liaison centrale {c['id']}", "b": c["b_m"], "h": c["h_m"],

@@ -193,14 +193,31 @@ def design_strap_beams(
         top = _select_bars(as_design)
         bottom = _select_bars(as_min_cm2)  # nappe inferieure = mini constructif
 
-        # Metre (aciers longitudinaux + cadres)
+        # --- Repartition des cadres selon RPS 2000 (ed. 2011) ---
+        # Zone critique sur 2h depuis chaque noeud : st <= min(h/4, 12 phi_l, 20cm).
+        # Zone courante : st <= min(h/2, 20cm).
+        phi_l_min = min(float(top["diameter_mm"]), float(bottom["diameter_mm"]))
+        lc = round(2.0 * h, 2)  # longueur de zone critique a chaque extremite
+        s_crit = max(0.07, math.floor(min(h / 4.0, 12 * phi_l_min / 1000.0, 0.20) / 0.05) * 0.05)
+        s_crit = round(s_crit, 2)
+        s_cour = round(max(0.10, math.floor(min(h / 2.0, 0.20) / 0.05) * 0.05), 2)
+
+        n_crit_end = int(math.ceil(lc / s_crit))           # cadres par zone critique
+        mid_len = max(L - 2.0 * lc, 0.0)
+        n_cour = int(math.ceil(mid_len / s_cour)) if mid_len > 1e-6 else 0
+        n_stirrups = 2 * n_crit_end + n_cour + 1            # + 1 premier cadre a 5cm
+
+        # Metre (aciers longitudinaux + cadres reparties)
         concrete_m3 = round(b * h * L, 3)
         long_kg = round(
             (top["count"] * (top["diameter_mm"] / 1000.0) ** 2 * PI / 4.0
              + bottom["count"] * (bottom["diameter_mm"] / 1000.0) ** 2 * PI / 4.0)
             * L * 7850.0, 2)
-        stirrup_kg = _stirrup_steel_kg(b, h, L, cover_m=cover_m, phi_stirrup_mm=8.0, spacing_m=0.15)
+        perim_cadre = 2.0 * ((b - 2 * cover_m) + (h - 2 * cover_m)) + 0.20
+        stirrup_kg = round(n_stirrups * perim_cadre * (8.0 / 1000.0) ** 2 * PI / 4.0 * 7850.0, 2)
         steel_kg = round(long_kg + stirrup_kg, 2)
+        stirrups_label = (f"HA8 e={int(s_crit * 100)} sur 2h (zone critique) / "
+                          f"e={int(s_cour * 100)} (courant)")
 
         counter += 1
         beams.append({
@@ -223,13 +240,17 @@ def design_strap_beams(
             "As_top_cm2": top["As_cm2"],
             "bars_bottom": bottom["label"],
             "As_bottom_cm2": bottom["As_cm2"],
-            "stirrups": "HA8 e=15 cm",
+            "stirrups": stirrups_label,
+            "stirrup_zone_critique_m": lc,
+            "stirrup_spacing_crit_m": s_crit,
+            "stirrup_spacing_cour_m": s_cour,
+            "stirrup_count": n_stirrups,
             "long_steel_kg": long_kg,
             "stirrup_steel_kg": stirrup_kg,
             "concrete_m3": concrete_m3,
             "steel_kg": steel_kg,
             "status": "PRELIMINARY",
-            "note": "PR preliminaire : reprend M = gamma*N*e. A verifier (rigidite, fleche, ancrages).",
+            "note": "PR preliminaire (RPS 2000). Cadres resserres en zone critique (2h). A verifier (rigidite, fleche, ancrages).",
         })
 
     totals = {
