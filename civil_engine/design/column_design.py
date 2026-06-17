@@ -53,6 +53,15 @@ def design_columns(
     steel = Steel(fyk_mpa=fyk_mpa, gamma_s=gamma_s)
     lf = buckling_coeff * storey_height_m
 
+    # Niveaux depart / arrivee du poteau (altitudes) pour le metre.
+    z_by_name = {lv.get("name"): lv.get("z_top_m") for lv in model.get("levels", [])}
+    zs = [z for z in z_by_name.values() if z is not None]
+    z_depart = z_by_name.get("FONDATION")
+    if z_depart is None:
+        z_depart = min(zs) if zs else 0.0
+    z_arrivee = max(zs) if zs else (z_depart + storey_height_m)
+    height = max(round(z_arrivee - z_depart, 2), storey_height_m)
+
     columns: list[dict[str, Any]] = []
     warnings: list[dict[str, str]] = []
     cache: dict[tuple, Any] = {}
@@ -104,10 +113,24 @@ def design_columns(
             status = "SECTION_INSUFFISANTE"
             warnings.append({"code": "RHO_MAX", "message": f"{cid} : rho {r.rho_percent:.1f}% > rho_max."})
 
+        # Metre du poteau (beton + acier longitudinal + cadres) sur la hauteur.
+        concrete_m3 = round(a * b * height, 3)
+        long_kg = round(n * (phi / 1000.0) ** 2 * PI / 4.0 * height * 7850.0, 2)
+        n_crit_end = int(math.ceil(lc / s_crit)) if s_crit > 0 else 0
+        mid = max(height - 2.0 * lc, 0.0)
+        n_cour = int(math.ceil(mid / s_cour)) if mid > 1e-6 and s_cour > 0 else 0
+        n_cad = 2 * n_crit_end + n_cour + 1
+        perim = 2.0 * ((a - 2 * cover_m) + (b - 2 * cover_m)) + 0.20
+        cadre_kg = round(n_cad * perim * (phi_stirrup_mm / 1000.0) ** 2 * PI / 4.0 * 7850.0, 2)
+        steel_kg = round(long_kg + cadre_kg, 2)
+
         columns.append({
             "id": cid, "a_m": a, "b_m": b,
             "N_ELU_kN": round(Nu, 2),
             "levels_supported": loads.get(cid, {}).get("levels_supported", []),
+            "niveau_depart_m": round(z_depart, 2),
+            "niveau_arrivee_m": round(z_arrivee, 2),
+            "height_m": height,
             "slenderness_lambda": round(lam, 1),
             "bars_long": f"{n}HA{int(phi)}",
             "As_provided_cm2": round(r.As_cm2, 2),
@@ -120,6 +143,10 @@ def design_columns(
             "stirrup_spacing_crit_m": s_crit,
             "stirrup_spacing_cour_m": s_cour,
             "stirrups": f"HA{int(phi_stirrup_mm)} e={int(s_crit*100)} (zone critique L.C) / e={int(s_cour*100)} (courant)",
+            "concrete_m3": concrete_m3,
+            "long_steel_kg": long_kg,
+            "stirrup_steel_kg": cadre_kg,
+            "steel_kg": steel_kg,
             "status": status,
             "note": "Predimensionnement EC2 (interaction N-M biaxiale + exc. mini + flambement) + cadres RPS 2000. A verifier (sisme, 2e ordre).",
         })
@@ -138,6 +165,12 @@ def design_columns(
             "method_note": "Section EC2 (poteaux_ba) + excentricite minimale + flambement ; cadres RPS 2000.",
         },
         "columns": columns,
-        "summary": {"count": len(columns), "by_status": by_status},
+        "summary": {
+            "count": len(columns), "by_status": by_status,
+            "total_concrete_m3": round(sum(c.get("concrete_m3", 0.0) for c in columns), 3),
+            "total_steel_kg": round(sum(c.get("steel_kg", 0.0) for c in columns), 2),
+            "niveau_depart_m": round(z_depart, 2),
+            "niveau_arrivee_m": round(z_arrivee, 2),
+        },
         "warnings": warnings,
     }

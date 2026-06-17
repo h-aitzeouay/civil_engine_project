@@ -60,17 +60,26 @@ def _draw_bars_in_box(msp, box, count, cover=0.03):
         msp.add_circle((bx, by), r, dxfattribs={"layer": "ARM_POTEAU"})
 
 
-def _draw_column_table(msp, columns, x, y):
+def _draw_column_table(msp, columns, x, y, summary=None):
     add_text(msp, "TABLEAU DES POTEAUX", x, y, 0.22, "TABLEAU_POTEAUX")
-    add_text(msp, "ID | a x b (m) | N_ELU (kN) | lambda | Long. | rho% | Cadres",
-             x, y - 0.34, 0.11, "TABLEAU_POTEAUX")
-    yy = y - 0.60
+    header = ("Poteau | a x b | Niv. depart | Niv. arrivee | Aciers long. | "
+              "Aciers transv. (cadres) | Acier (kg) | Beton (m3)")
+    add_text(msp, header, x, y - 0.34, 0.10, "TABLEAU_POTEAUX")
+    yy = y - 0.58
     for c in columns:
-        row = (f"{c['id']} | {c['a_m']}x{c['b_m']} | {c['N_ELU_kN']} | "
-               f"{c['slenderness_lambda']} | {c['bars_long']} | {c['rho_percent']} | "
-               f"{c['stirrups']}")
-        add_text(msp, row, x, yy, 0.092, "TABLEAU_POTEAUX")
-        yy -= 0.205
+        nd = c.get("niveau_depart_m", "-")
+        na = c.get("niveau_arrivee_m", "-")
+        row = (f"{c['id']} | {c['a_m']}x{c['b_m']} m | {nd:+.2f} | {na:+.2f} | "
+               f"{c['bars_long']} | {c.get('stirrups','-')} | "
+               f"{c.get('steel_kg','-')} | {c.get('concrete_m3','-')}")
+        add_text(msp, row, x, yy, 0.088, "TABLEAU_POTEAUX")
+        yy -= 0.195
+    if summary:
+        yy -= 0.10
+        total = (f"TOTAL POTEAUX : acier = {summary.get('total_steel_kg','-')} kg | "
+                 f"beton = {summary.get('total_concrete_m3','-')} m3 | "
+                 f"nombre = {summary.get('count','-')}")
+        add_text(msp, total, x, yy, 0.105, "TABLEAU_POTEAUX")
 
 
 def _draw_column_section_detail(msp, x, y, col):
@@ -177,10 +186,11 @@ def generate_column_plan_dxf(
                  0.08, "ARM_POTEAU")
 
     # Tableau des poteaux a droite
-    _draw_column_table(msp, design.get("columns", []), xmax + 2.0, ty - 0.5)
+    _draw_column_table(msp, design.get("columns", []), xmax + 2.0, ty - 0.5,
+                       summary=design.get("summary"))
 
     # Notes / reserves (predimensionnement)
-    nx, ny = xmax + 2.0, ty - 0.5 - 0.205 * (len(design.get("columns", [])) + 4)
+    nx, ny = xmax + 2.0, ty - 1.1 - 0.195 * (len(design.get("columns", [])) + 5)
     add_text(msp, "NOTES & RESERVES (PREDIMENSIONNEMENT) :", nx, ny, 0.13, "NOTES_POTEAUX")
     notes = [
         "- Materiaux : beton fc28=25 MPa, acier FeE500, enrobage 25 mm.",
