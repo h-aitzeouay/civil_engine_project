@@ -43,7 +43,8 @@ def ensure_execution_layers(doc) -> None:
         "NOTES_EXECUTION": 1,
         "CARTOUCHE": 7,
         "RENVOIS_EXECUTION": 8,
-        "DETAILS_ANCRAGE": 5,
+        "DETAILS_ANCRAGE": 7,
+        "RECOUVREMENTS": 7,
         "DETAILS_ATTENTES": 2,
         "DETAILS_SECTIONS": 3,
         "DETAILS_TITRES": 7,
@@ -424,7 +425,7 @@ def draw_anchorage_detail_panel(
     ay = y + 1.05
     add_line(msp, ax, ay, ax, ay + 2.20, "DETAILS_ANCRAGE")
     add_line(msp, ax - 0.35, ay, ax + 0.35, ay, "DETAILS_ANCRAGE")
-    add_detail_dimension_vertical(msp, ax + 0.45, ay, ay + 2.20, "Lbd")
+    add_detail_dimension_vertical(msp, ax + 0.45, ay, ay + 2.20, "Lbd = 40 phi")
     add_text(msp, "Barre verticale ancree", ax - 0.75, ay - 0.35, 0.085, "DETAILS_ANCRAGE")
 
     # Forme B
@@ -433,7 +434,7 @@ def draw_anchorage_detail_panel(
     add_line(msp, bx, by + 0.30, bx, by + 2.25, "DETAILS_ANCRAGE")
     add_line(msp, bx, by + 0.30, bx + 1.20, by + 0.30, "DETAILS_ANCRAGE")
     draw_small_hook_135(msp, bx + 1.20, by + 0.30, "right", "DETAILS_ANCRAGE")
-    add_detail_dimension_vertical(msp, bx - 0.35, by + 0.30, by + 2.25, "Lbd")
+    add_detail_dimension_vertical(msp, bx - 0.35, by + 0.30, by + 2.25, "Lbd = 40 phi")
     add_detail_dimension_horizontal(msp, bx, bx + 1.20, by - 0.05, "retour")
     add_text(msp, "Crosse a utiliser si H insuffisant", bx - 0.55, by - 0.45, 0.085, "DETAILS_ANCRAGE")
 
@@ -442,16 +443,17 @@ def draw_anchorage_detail_panel(
     cy = y + 0.95
     add_line(msp, cx, cy, cx, cy + 2.40, "DETAILS_ANCRAGE")
     add_line(msp, cx + 0.35, cy + 0.50, cx + 0.35, cy + 2.90, "RECOUVREMENTS")
-    add_detail_dimension_vertical(msp, cx + 0.70, cy + 0.50, cy + 2.40, "L0")
+    add_detail_dimension_vertical(msp, cx + 0.70, cy + 0.50, cy + 2.40, "L0 = 60 phi")
     add_text(msp, "Recouvrement hors zone critique", cx - 0.45, cy - 0.35, 0.085, "DETAILS_ANCRAGE")
 
-    # Notes séparées, sans chevauchement
+    # Notes separees, sans chevauchement (valeurs normatives EC2/BAEL)
     add_multiline_text(
         msp,
         [
-            "Notes execution :",
-            "- Lbd et L0 a recalculer selon EC2/BAEL.",
-            "- Crochets, diametres et rayons de cintrage a verifier.",
+            "Notes execution (valeurs normatives EC2/BAEL) :",
+            "- Lbd = 40 phi (ancrage droit, conditions d'adherence courantes).",
+            "- L0 = 60 phi (recouvrement = 1.5 x Lbd, barres tendues).",
+            "- Crochets, diametres et rayons de cintrage selon EC2/BAEL.",
             "- Eviter les recouvrements dans les zones critiques.",
         ],
         x + 0.40,
