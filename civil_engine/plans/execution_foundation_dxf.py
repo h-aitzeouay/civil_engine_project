@@ -274,11 +274,11 @@ def draw_references(
     y -= 0.30
 
     refs = [
-        "D1 : Coupes detaillees fondations",
-        "D2 : Details ancrages et recouvrements",
-        "D3 : Details attentes et cadres",
-        "D4 : Verification poinconnement",
-        "D5 : Note de calcul generale",
+        "D1 : Details ancrages et recouvrements",
+        "D2 : Details attentes poteaux et cadres",
+        "D3 : Coupes types poutres (chainage/PR/liaison)",
+        "D4 : Details types complementaires",
+        "Note de calcul + metre : voir dossier.",
     ]
 
     for ref in refs:
@@ -291,21 +291,35 @@ def draw_general_notes(
     x: float,
     y: float,
 ) -> None:
-    add_text(msp, "NOTES GENERALES", x, y, 0.18, "NOTES_EXECUTION")
-    y -= 0.30
+    add_text(msp, "NOTES GENERALES, MATERIAUX & DISPOSITIONS PARASISMIQUES",
+             x, y, 0.15, "NOTES_EXECUTION")
+    y -= 0.27
 
-    notes = [
-        "1. Plan base sur la configuration finale retenue.",
-        "2. Les dimensions et ferraillages sont issus du predimensionnement automatique.",
-        "3. Verification finale par ingenieur structure obligatoire avant execution.",
-        "4. Ancrages, recouvrements et dispositions sismiques a valider.",
-        "5. Toute modification chantier doit etre validee avant execution.",
-        "6. Les details integres ci-dessous sont schematiques et servent de renvoi d'execution.",
-    ]
+    def _put(s, h=0.082, dec=0.158):
+        nonlocal y
+        add_text(msp, s, x, y, h, "NOTES_EXECUTION")
+        y -= dec
 
-    for note in notes:
-        add_text(msp, note, x, y, 0.085, "NOTES_EXECUTION")
-        y -= 0.18
+    _put("MATERIAUX :", 0.095, 0.18)
+    _put("- Beton fondations : fc28 = 25 MPa ; beton de proprete sous semelles.")
+    _put("- Acier a haute adherence : FeE500.   - Enrobage = 25 mm.")
+    _put("HYPOTHESES :", 0.095, 0.18)
+    _put("- Portance du sol a confirmer par etude geotechnique.")
+    _put("- Descente de charges preliminaire (G + Q) ; ELU = 1.35G + 1.5Q.")
+    _put("DISPOSITIONS PARASISMIQUES (RPS 2000 - ed. 2011) :", 0.095, 0.18)
+    _put("- Poteaux : zone critique L.C = max(He/6 ; plus grande dim. ; 45 cm).")
+    _put("- Poutres/longrines/PR : zone critique = 2h aux noeuds.")
+    _put("- Cadres zone critique : poteaux e<=min(8phi,0.25a,15cm) ;")
+    _put("                          poutres e<=min(h/4,12phi,20cm).")
+    _put("- Cadres zone courante : poteaux e<=min(12phi,0.5a,30cm) ; poutres e<=h/2.")
+    _put("- Ancrage Lbd = 40 phi ; recouvrement L0 = 60 phi.")
+    _put("- Longrines de liaison (chainage) entre toutes les semelles.")
+    _put("LEGENDE :", 0.095, 0.18)
+    _put("- SI/SE : semelle isolee / excentree.   - LG : longrine / chainage.")
+    _put("- PR : poutre de redressement.   - PL : poutre de liaison centrale.")
+    _put("GENERALITES :", 0.095, 0.18)
+    _put("- Predimensionnement automatique ; verification ingenieur obligatoire.")
+    _put("- Toute modification chantier validee avant execution.")
 
 
 # =========================================================
