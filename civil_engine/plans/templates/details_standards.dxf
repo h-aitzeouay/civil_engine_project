@@ -493,7 +493,7 @@ $SKPOLY
   9
 $TDCREATE
  40
-2461209.1388541665
+2461209.1462731482
   9
 $TDUCREATE
  40
@@ -501,7 +501,7 @@ $TDUCREATE
   9
 $TDUPDATE
  40
-2461209.1388541665
+2461209.1462731482
   9
 $TDUUPDATE
  40
@@ -553,7 +553,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-C7E
+C7D
   9
 $SURFTAB1
  70
@@ -933,11 +933,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-{20DECFDA-D894-432B-B4A4-0F39FB1DFD32}
+{246312E7-28E4-4839-8365-08362FC5D2C0}
   9
 $VERSIONGUID
   2
-{18BD94C9-1166-401A-857A-DF9197C5EFEE}
+{0FB11E00-8B4D-4DF1-BAB1-A6FFF2ECFE35}
   9
 $EXTNAMES
 290
@@ -1551,6 +1551,28 @@ AcDbSymbolTableRecord
 100
 AcDbLinetypeTableRecord
   2
+CONTINU
+ 70
+0
+  3
+Ligne continue
+ 72
+65
+ 73
+0
+ 40
+0.0
+  0
+LTYPE
+  5
+C73
+330
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbLinetypeTableRecord
+  2
 AXES
  70
 0
@@ -1581,7 +1603,7 @@ Centre ____ _ ____ _ ____ _ ____ _ ____ _ ____
   0
 LTYPE
   5
-C73
+C74
 330
 2
 100
@@ -1616,28 +1638,6 @@ GrPointillés
 -0.1
  74
 0
-  0
-LTYPE
-  5
-C74
-330
-2
-100
-AcDbSymbolTableRecord
-100
-AcDbLinetypeTableRecord
-  2
-CONTINU
- 70
-0
-  3
-Ligne continue
- 72
-65
- 73
-0
- 40
-0.0
   0
 ENDTAB
   0
@@ -1713,15 +1713,15 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-AXES
+EPM ARMATURE INFERIEURE
  70
 0
  62
-132
+140
   6
 Continuous
 370
--3
+25
 390
 F
 347
@@ -1739,15 +1739,15 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-EPM LIGNE018
+Mure decoraftif
  70
 0
  62
-60
+31
   6
 Continuous
 370
-18
+-3
 390
 F
 347
@@ -1758,58 +1758,6 @@ EE
 LAYER
   5
 C5C
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-0.25
- 70
-0
- 62
-7
-  6
-Continuous
-370
-13
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C5D
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-EPM COUPES
- 70
-0
- 62
-5
-  6
-Continuous
-370
-53
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C5E
 330
 1
 100
@@ -1835,6 +1783,58 @@ EE
   0
 LAYER
   5
+C5D
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+texte
+ 70
+0
+ 62
+7
+  6
+Continuous
+370
+0
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C5E
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+EPM COUPES
+ 70
+0
+ 62
+5
+  6
+Continuous
+370
+53
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
 C5F
 330
 1
@@ -1843,15 +1843,15 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-COTA
+EPM LIGNE018
  70
 0
  62
-1
+60
   6
 Continuous
 370
-0
+18
 390
 F
 347
@@ -1862,136 +1862,6 @@ EE
 LAYER
   5
 C60
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-EPM HACHURES 1
- 70
-0
- 62
-251
-  6
-Continuous
-370
-9
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C61
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-fairaillage
- 70
-2
- 62
-7
-  6
-Continuous
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C62
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-EPM TRAIT018
- 70
-0
- 62
-60
-  6
-Continuous
-370
-18
-390
-66C
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C63
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-plan BA111
- 70
-0
- 62
-7
-  6
-Continuous
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C64
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-EPM TEXTES
- 70
-0
- 62
-7
-  6
-Continuous
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C65
 330
 1
 100
@@ -2019,7 +1889,7 @@ EE
   0
 LAYER
   5
-C66
+C61
 330
 1
 100
@@ -2027,85 +1897,7 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-P
- 70
-0
- 62
-94
-  6
-Continuous
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C67
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-EPM ARMATURE INFERIEURE
- 70
-0
- 62
-140
-  6
-Continuous
-370
-25
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C68
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-Mure decoraftif
- 70
-0
- 62
-31
-  6
-Continuous
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C69
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-00.00
+0.25
  70
 0
  62
@@ -2113,7 +1905,7 @@ AcDbLayerTableRecord
   6
 Continuous
 370
--3
+13
 390
 F
 347
@@ -2123,137 +1915,7 @@ EE
   0
 LAYER
   5
-C6A
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-CHAINAGES
- 70
-0
- 62
-10
-  6
-Continuous
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C6B
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-EPM ARMATURES INFERIEURES
- 70
-0
- 62
-140
-  6
-Continuous
-370
-25
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C6C
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-RA COUPE
- 70
-0
- 62
-7
-  6
-Continuous
-370
-30
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C6D
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-BA-POUTRE
- 70
-0
- 62
-4
-  6
-Continuous
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C6E
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-plan BA
- 70
-0
- 62
-7
-  6
-AXES
-370
--3
-390
-F
-347
-EE
-348
-0
-  0
-LAYER
-  5
-C6F
+C62
 330
 1
 100
@@ -2279,7 +1941,189 @@ EE
   0
 LAYER
   5
-C70
+C63
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+BA-POUTRE
+ 70
+0
+ 62
+4
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C64
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+fairaillage
+ 70
+2
+ 62
+7
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C65
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+EPM TRAIT018
+ 70
+0
+ 62
+60
+  6
+Continuous
+370
+18
+390
+66C
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C66
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+AXES
+ 70
+0
+ 62
+132
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C67
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+EPM TEXTES
+ 70
+0
+ 62
+7
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C68
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+COTA
+ 70
+0
+ 62
+1
+  6
+Continuous
+370
+0
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C69
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+P
+ 70
+0
+ 62
+94
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C6A
 330
 1
 100
@@ -2305,6 +2149,162 @@ EE
   0
 LAYER
   5
+C6B
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+plan BA
+ 70
+0
+ 62
+7
+  6
+AXES
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C6C
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+CHAINAGES
+ 70
+0
+ 62
+10
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C6D
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+plan BA111
+ 70
+0
+ 62
+7
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C6E
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+RA COUPE
+ 70
+0
+ 62
+7
+  6
+Continuous
+370
+30
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C6F
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+00.00
+ 70
+0
+ 62
+7
+  6
+Continuous
+370
+-3
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
+C70
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+EPM ARMATURES INFERIEURES
+ 70
+0
+ 62
+140
+  6
+Continuous
+370
+25
+390
+F
+347
+EE
+348
+0
+  0
+LAYER
+  5
 C71
 330
 1
@@ -2313,15 +2313,15 @@ AcDbSymbolTableRecord
 100
 AcDbLayerTableRecord
   2
-texte
+EPM HACHURES 1
  70
 0
  62
-7
+251
   6
 Continuous
 370
-0
+9
 390
 F
 347
@@ -2341,7 +2341,7 @@ STYLE
 100
 AcDbSymbolTable
  70
-7
+6
   0
 STYLE
   5
@@ -2381,6 +2381,34 @@ AcDbSymbolTableRecord
 100
 AcDbTextStyleTableRecord
   2
+B
+ 70
+0
+ 40
+0.0
+ 41
+0.65
+ 50
+15.0
+ 71
+0
+ 42
+30.0
+  3
+romand.shx
+  4
+
+  0
+STYLE
+  5
+C76
+330
+5
+100
+AcDbSymbolTableRecord
+100
+AcDbTextStyleTableRecord
+  2
 GrAnnotations
  70
 0
@@ -2396,34 +2424,6 @@ GrAnnotations
 2.5
   3
 romantic.ttf
-  4
-
-  0
-STYLE
-  5
-C76
-330
-5
-100
-AcDbSymbolTableRecord
-100
-AcDbTextStyleTableRecord
-  2
-
- 70
-0
- 40
-0.0
- 41
-1.0
- 50
-0.0
- 71
-0
- 42
-2.5
-  3
-
   4
 
   0
@@ -2465,7 +2465,7 @@ AcDbSymbolTableRecord
 100
 AcDbTextStyleTableRecord
   2
-B
+GrCotations
  70
 0
  40
@@ -2473,13 +2473,13 @@ B
  41
 0.65
  50
-15.0
+0.0
  71
 0
  42
-30.0
+2.5
   3
-romand.shx
+romant.shx
   4
 
   0
@@ -2508,34 +2508,6 @@ Arial
 0.0
   3
 arial.ttf
-  4
-
-  0
-STYLE
-  5
-C7A
-330
-5
-100
-AcDbSymbolTableRecord
-100
-AcDbTextStyleTableRecord
-  2
-GrCotations
- 70
-0
- 40
-0.0
- 41
-0.65
- 50
-0.0
- 71
-0
- 42
-2.5
-  3
-romant.shx
   4
 
   0
@@ -2597,7 +2569,7 @@ ACAD
   0
 APPID
   5
-C7B
+C7A
 330
 3
 100
@@ -2611,7 +2583,7 @@ HATCHBACKGROUNDCOLOR
   0
 APPID
   5
-C7C
+C7B
 330
 3
 100
@@ -60036,8 +60008,6 @@ AcDbText
 90.0
   1
 T10 e=12
-  7
-
 100
 AcDbText
   0
@@ -60530,8 +60500,6 @@ AcDbText
 90.0
   1
 T10 e=15
-  7
-
 100
 AcDbText
   0
@@ -60776,8 +60744,6 @@ AcDbText
 90.0
   1
 T8 e=15
-  7
-
 100
 AcDbText
   0
@@ -61162,8 +61128,6 @@ AcDbText
 90.0
   1
 T10 e=15 - L=1.60
-  7
-
 100
 AcDbText
   0
@@ -61408,8 +61372,6 @@ AcDbText
 90.0
   1
 T8 e=15
-  7
-
 100
 AcDbText
   0
@@ -61654,8 +61616,6 @@ AcDbText
 90.0
   1
 T10 e=15
-  7
-
 100
 AcDbText
   0
@@ -61980,8 +61940,6 @@ AcDbText
 90.0
   1
 T8 e=15
-  7
-
 100
 AcDbText
   0
@@ -62306,8 +62264,6 @@ AcDbText
 90.0
   1
 T10 e=15
-  7
-
 100
 AcDbText
   0
@@ -62772,8 +62728,6 @@ AcDbText
 90.0
   1
 T10 e=15 - L=1.60
-  7
-
 100
 AcDbText
   0
@@ -63098,8 +63052,6 @@ AcDbText
 90.0
   1
 T10 e=15 - L=1.60
-  7
-
 100
 AcDbText
   0
@@ -63344,8 +63296,6 @@ AcDbText
 90.0
   1
 T8 e=15
-  7
-
 100
 AcDbText
   0
@@ -63590,8 +63540,6 @@ AcDbText
 90.0
   1
 T10 e=15 - L=1.60
-  7
-
 100
 AcDbText
   0
@@ -63916,8 +63864,6 @@ AcDbText
 90.0
   1
 T8 e=15
-  7
-
 100
 AcDbText
   0
@@ -104983,7 +104929,7 @@ CREATED_BY_EZDXF
   3
 WRITTEN_BY_EZDXF
 350
-C7D
+C7C
   0
 DICTIONARYVAR
   5
@@ -104995,11 +104941,11 @@ DictionaryVariables
 280
 0
   1
-1.4.4 @ 2026-06-17T02:19:57.555025+00:00
+1.4.4 @ 2026-06-17T02:30:38.357979+00:00
   0
 DICTIONARYVAR
   5
-C7D
+C7C
 330
 2D
 100
@@ -105007,7 +104953,7 @@ DictionaryVariables
 280
 0
   1
-1.4.4 @ 2026-06-17T02:19:57.671669+00:00
+1.4.4 @ 2026-06-17T02:30:38.464251+00:00
   0
 ENDSEC
   0
