@@ -90,6 +90,54 @@ def _draw_column_section_detail(msp, x, y, col):
     add_text(msp, "Enrobage = 25 mm", x, y - 0.52, 0.085, "DETAILS_SECTIONS")
 
 
+def _draw_column_elevation_detail(msp, x, y, col, storey_height_m=3.0):
+    """Coupe d'elevation d'un poteau : aciers longitudinaux + cadres repartis
+    (zone critique L.C en pied/tete, courante au milieu) + recouvrement 60 phi."""
+    a = float(col["a_m"])
+    wscale = 4.0                      # echelle horizontale (largeur lisible)
+    W = a * wscale
+    Hv = storey_height_m              # 1 m reel -> 1 unite (elevation a l'echelle)
+    n, phi = _parse_bars(col["bars_long"])
+    lc = float(col.get("zone_critique_lc_m", max(storey_height_m / 6.0, a, 0.45)))
+    l0 = round(60 * phi / 1000.0, 2)  # recouvrement = 60 phi
+
+    add_text(msp, f"ELEVATION POTEAU {col['id']}", x, y + Hv + 0.25, 0.13, "DETAILS_TITRES")
+
+    # Faces du poteau
+    add_rect(msp, x, y, x + W, y + Hv, "DETAILS_SECTIONS")
+    # Aciers longitudinaux (2 files de face)
+    off = 0.10
+    for s in (off, W - off):
+        msp.add_line((x + s, y), (x + s, y + Hv), dxfattribs={"layer": "ARM_POTEAU"})
+    # Barres de recouvrement (montant du niveau inferieur) sur L0 au pied
+    for s in (off + 0.04, W - off - 0.04):
+        msp.add_line((x + s, y - 0.10), (x + s, y + l0), dxfattribs={"layer": "ARM_POTEAU"})
+
+    # Cadres repartis (zone critique L.C en pied et tete, courante au milieu)
+    disp_crit = max(float(col.get("stirrup_spacing_crit_m", 0.10)), 0.14)
+    disp_cour = max(float(col.get("stirrup_spacing_cour_m", 0.15)), 0.28)
+    lc_disp = min(lc, Hv / 2.5)
+
+    def _cad(yy):
+        msp.add_line((x + 0.05, yy), (x + W - 0.05, yy), dxfattribs={"layer": "CADRES_POTEAUX"})
+
+    yy = y + 0.06
+    while yy < y + lc_disp:           # zone critique pied
+        _cad(yy); yy += disp_crit
+    yy = y + lc_disp
+    while yy < y + Hv - lc_disp:      # zone courante
+        _cad(yy); yy += disp_cour
+    yy = y + Hv - lc_disp
+    while yy < y + Hv - 0.05:         # zone critique tete
+        _cad(yy); yy += disp_crit
+
+    # Cotes / labels
+    add_text(msp, f"Long. {col['bars_long']}", x + W + 0.25, y + Hv * 0.6, 0.085, "DETAILS_SECTIONS")
+    add_text(msp, f"L.C = {lc:.2f} m (zone critique)", x + W + 0.25, y + Hv * 0.45, 0.075, "CADRES_POTEAUX")
+    add_text(msp, f"Cadres {col['stirrups']}", x + W + 0.25, y + Hv * 0.30, 0.072, "CADRES_POTEAUX")
+    add_text(msp, f"Recouvrement L0 = 60 phi = {l0:.2f} m", x + W + 0.25, y + 0.10, 0.075, "ARM_POTEAU")
+
+
 def generate_column_plan_dxf(
     model: dict[str, Any],
     design: dict[str, Any],
@@ -131,10 +179,11 @@ def generate_column_plan_dxf(
     # Tableau des poteaux a droite
     _draw_column_table(msp, design.get("columns", []), xmax + 2.0, ty - 0.5)
 
-    # Coupe type (poteau le plus charge)
+    # Coupe type + elevation (poteau le plus charge)
     if design.get("columns"):
         worst = max(design["columns"], key=lambda c: c.get("N_ELU_kN", 0.0))
         _draw_column_section_detail(msp, 0.0, ymin - 6.0, worst)
+        _draw_column_elevation_detail(msp, 5.5, ymin - 9.0, worst, storey_height_m=3.0)
 
     # Planche A3 + cartouche
     try:
