@@ -544,31 +544,43 @@ def draw_attentes_detail_panel(
     add_line(msp, a_l + 0.07, break_y - 0.70, a_l + 0.07, top_y, "ATTENTES_POTEAUX")
     add_line(msp, a_r - 0.07, break_y - 0.70, a_r - 0.07, top_y, "ATTENTES_POTEAUX")
 
-    # Cadres : e=7 cm rapproches dans la semelle, puis e variable au-dessus
-    yy = base_y + 0.14
-    while yy < base_y + 0.52:
+    # Cadres : 3 zones (RPS 2000 - edition 2011)
+    #  1) ancrage dans la semelle : cadres rapproches ;
+    #  2) ZONE CRITIQUE en pied de poteau (lc) : e <= min(8 phi_l, 0.25 a, 15 cm) ;
+    #  3) zone courante au-dessus : e <= min(12 phi_l, 0.5 a, 30 cm).
+    foot_top = base_y + 0.55
+    crit_top = foot_top + 0.95          # longueur de zone critique (affichage)
+
+    yy = base_y + 0.14                  # cadres dans la semelle
+    while yy < foot_top - 0.03:
         add_line(msp, a_l, yy, a_r, yy, "CADRES_POTEAUX")
         yy += 0.13
-    yy = base_y + 0.78
+    yy = foot_top + 0.10                # zone critique (rapprochee)
+    while yy < crit_top:
+        add_line(msp, col_l + 0.06, yy, col_r - 0.06, yy, "CADRES_POTEAUX")
+        yy += 0.15
+    yy = crit_top + 0.05                # zone courante
     while yy < break_y - 0.15:
         add_line(msp, col_l + 0.06, yy, col_r - 0.06, yy, "CADRES_POTEAUX")
-        yy += 0.28
+        yy += 0.30
 
     add_detail_dimension_vertical(msp, col_r + 0.40, foot_bottom, break_y - 0.10, "haut. attentes")
     add_detail_dimension_vertical(msp, col_r + 0.85, break_y - 0.70, top_y, "L0 = 60 phi")
-    add_text(msp, "Cadres e=7cm dans la semelle,", sx - 0.60, base_y - 0.30, 0.072, "CADRES_POTEAUX")
-    add_text(msp, "puis e variable (ferraillage poteau)", sx - 0.60, base_y - 0.44, 0.072, "CADRES_POTEAUX")
+    add_detail_dimension_vertical(msp, col_l - 0.35, foot_top, crit_top, "zone critique lc")
+    add_text(msp, "RPS 2000 (ed. 2011) :", sx - 0.62, base_y - 0.28, 0.070, "CADRES_POTEAUX")
+    add_text(msp, "zone critique e<=min(8phi,0.25a,15cm),", sx - 0.62, base_y - 0.40, 0.066, "CADRES_POTEAUX")
+    add_text(msp, "courante e<=min(12phi,0.5a,30cm)", sx - 0.62, base_y - 0.52, 0.066, "CADRES_POTEAUX")
 
     # ============ Indications ============
     add_multiline_text(
         msp,
         [
-            "Indications :",
-            "- Cadres rapproches e=7cm dans la semelle.",
-            "- Espacement variable au-dessus (selon poteau).",
+            "Indications (RPS 2000 - ed. 2011) :",
+            "- Cadres rapproches dans la semelle (ancrage).",
+            "- Zone critique lc en pied : e<=min(8phi,0.25a,15cm).",
+            "- Zone courante : e<=min(12phi,0.5a,30cm).",
             "- Attentes avec retour en L + couture du mandrin.",
             "- Recouvrement L0 = 60 phi avec les barres du poteau.",
-            "- Attentes centrees dans le poteau effectif.",
             "- Enrobage = 25 mm.",
         ],
         x + 10.20,
