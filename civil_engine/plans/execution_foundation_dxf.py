@@ -1065,6 +1065,30 @@ def draw_perimeter_ties_on_plan(msp, tie_design, occupied=None,
         for s in (off, -off):
             msp.add_line((x1 + nx * s, y1 + ny * s), (x2 + nx * s, y2 + ny * s),
                          dxfattribs={"layer": arm_layer})
+
+        # Cadres repartis RPS 2000 : resserres en zone critique (2h), espaces au
+        # milieu. Espacements d'affichage majores pour la lisibilite au 1/50.
+        lc = float(t.get("stirrup_zone_critique_m", 2.0 * float(t["h_m"])))
+        lc = min(lc, max((L - 0.2) / 2.0, 0.0))
+        disp_crit = max(float(t.get("stirrup_spacing_crit_m", 0.10)), 0.18)
+        disp_cour = max(float(t.get("stirrup_spacing_cour_m", 0.20)), 0.38)
+
+        def _cadre(tt):
+            cxp, cyp = x1 + ux * tt, y1 + uy * tt
+            msp.add_line((cxp + nx * off, cyp + ny * off),
+                         (cxp - nx * off, cyp - ny * off),
+                         dxfattribs={"layer": "CADRES_POTEAUX"})
+
+        tt = 0.10
+        while tt < lc:
+            _cadre(tt); tt += disp_crit
+        tt = lc
+        while tt < L - lc:
+            _cadre(tt); tt += disp_cour
+        tt = L - lc
+        while tt < L - 0.10:
+            _cadre(tt); tt += disp_crit
+
         mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
         add_text(msp, f"{t['id']} {b:.2f}x{t['h_m']:.2f}", mx - 0.30, my + 0.04, 0.08, "TEXTES")
 
@@ -1188,8 +1212,10 @@ def generate_execution_foundation_dxf(
     try:
         if tie_design and tie_design.get("ties"):
             t = tie_design["ties"][0]
+            _tc = int(float(t.get("stirrup_spacing_crit_m", 0.10)) * 100)
+            _tco = int(float(t.get("stirrup_spacing_cour_m", 0.20)) * 100)
             beams_sections.append({"title": "Chainage (longrine)", "b": t["b_m"], "h": t["h_m"],
-                                   "top": "2HA12", "bot": "2HA12", "stirrup": "HA8 e=15"})
+                                   "top": "2HA12", "bot": "2HA12", "stirrup": f"HA8 e={_tc}/{_tco}"})
         if strap_design and strap_design.get("strap_beams"):
             s = strap_design["strap_beams"][0]
             _sc = int(float(s.get("stirrup_spacing_crit_m", 0.10)) * 100)
@@ -1199,8 +1225,10 @@ def generate_execution_foundation_dxf(
                                    "stirrup": f"HA8 e={_sc}/{_sco}"})
         if central_tie_design and central_tie_design.get("ties"):
             c = central_tie_design["ties"][0]
+            _cc = int(float(c.get("stirrup_spacing_crit_m", 0.10)) * 100)
+            _cco = int(float(c.get("stirrup_spacing_cour_m", 0.20)) * 100)
             beams_sections.append({"title": f"Liaison centrale {c['id']}", "b": c["b_m"], "h": c["h_m"],
-                                   "top": "2HA14", "bot": "2HA14", "stirrup": "HA8 e=15"})
+                                   "top": "2HA14", "bot": "2HA14", "stirrup": f"HA8 e={_cc}/{_cco}"})
         draw_beam_sections_panel(msp, details_x, details_y - 11.20, beams_sections)
     except Exception:
         pass

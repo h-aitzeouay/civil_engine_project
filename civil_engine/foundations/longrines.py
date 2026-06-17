@@ -41,6 +41,27 @@ def _stirrup_steel_kg(b_m: float, h_m: float, length_m: float, cover_m: float = 
     return round(n * perim * unit_kg_m, 2)
 
 
+def _stirrup_distribution(b_m: float, h_m: float, length_m: float, phi_long_mm: float,
+                          cover_m: float = 0.04, phi_stirrup_mm: float = 8.0) -> dict[str, Any]:
+    """
+    Repartition des cadres selon RPS 2000 (ed. 2011) : zone critique sur 2h
+    depuis chaque noeud (e<=min(h/4, 12 phi_l, 20cm)), zone courante
+    (e<=min(h/2, 20cm)). Retourne lc, espacements, nombre de cadres, acier, label.
+    """
+    lc = round(2.0 * h_m, 2)
+    lc = min(lc, max((length_m - 0.20) / 2.0, 0.0))
+    s_crit = round(max(0.07, math.floor(min(h_m / 4.0, 12 * phi_long_mm / 1000.0, 0.20) / 0.05) * 0.05), 2)
+    s_cour = round(max(0.10, math.floor(min(h_m / 2.0, 0.20) / 0.05) * 0.05), 2)
+    n_crit_end = int(math.ceil(lc / s_crit)) if s_crit > 0 and lc > 0 else 0
+    mid = max(length_m - 2.0 * lc, 0.0)
+    n_cour = int(math.ceil(mid / s_cour)) if mid > 1e-6 and s_cour > 0 else 0
+    n = 2 * n_crit_end + n_cour + 1
+    perim = 2.0 * ((b_m - 2 * cover_m) + (h_m - 2 * cover_m)) + 0.20
+    kg = round(n * perim * (phi_stirrup_mm / 1000.0) ** 2 * PI / 4.0 * 7850.0, 2)
+    label = f"HA8 e={int(s_crit * 100)} sur 2h (zone critique) / e={int(s_cour * 100)} (courant)"
+    return {"lc": lc, "s_crit": s_crit, "s_cour": s_cour, "count": n, "kg": kg, "label": label}
+
+
 def design_perimeter_ties(
     model: dict[str, Any],
     strategy_report: dict[str, Any],
@@ -111,6 +132,7 @@ def design_perimeter_ties(
                 continue
             n_max = max(float(a.get("N_ELS_kN") or 0.0), float(b.get("N_ELS_kN") or 0.0))
             nt = round(tie_force_ratio * n_max, 2)
+            dist = _stirrup_distribution(b_m, h_m, L, phi_long_mm)
             counter += 1
             ties.append({
                 "id": f"LG{counter:02d}",
@@ -122,12 +144,15 @@ def design_perimeter_ties(
                 "tie_force_kN": nt,
                 "As_min_cm2": as_long,
                 "bars_long": bars_label,
-                "stirrups": "HA8 e=15 cm",
+                "stirrups": dist["label"],
+                "stirrup_zone_critique_m": dist["lc"],
+                "stirrup_spacing_crit_m": dist["s_crit"],
+                "stirrup_spacing_cour_m": dist["s_cour"],
+                "stirrup_count": dist["count"],
                 "concrete_m3": round(b_m * h_m * L, 3),
-                "steel_kg": round(_long_steel_kg(n_long_bars, phi_long_mm, L)
-                                  + _stirrup_steel_kg(b_m, h_m, L), 2),
+                "steel_kg": round(_long_steel_kg(n_long_bars, phi_long_mm, L) + dist["kg"], 2),
                 "status": "PRELIMINARY",
-                "note": "Longrine de liaison peripherique (chainage). Section/ferraillage minimaux a verifier (RPS 2000).",
+                "note": "Longrine de liaison peripherique (chainage). Cadres RPS 2000 (zone critique 2h). A verifier.",
             })
 
     add_edge(edges["bottom"], lambda f: float(f["cx"]))
@@ -223,6 +248,7 @@ def design_central_ties(
         L = round(math.hypot(bx - ax, by - ay), 3)
         if L < 1e-3:
             continue
+        dist = _stirrup_distribution(b_m, h_m, L, phi_long_mm)
         counter += 1
         ties.append({
             "id": f"PL{counter:02d}",
@@ -233,12 +259,15 @@ def design_central_ties(
             "b_m": b_m, "h_m": h_m,
             "As_min_cm2": as_long,
             "bars_long": bars_label,
-            "stirrups": "HA8 e=15 cm",
+            "stirrups": dist["label"],
+            "stirrup_zone_critique_m": dist["lc"],
+            "stirrup_spacing_crit_m": dist["s_crit"],
+            "stirrup_spacing_cour_m": dist["s_cour"],
+            "stirrup_count": dist["count"],
             "concrete_m3": round(b_m * h_m * L, 3),
-            "steel_kg": round(_long_steel_kg(n_long_bars, phi_long_mm, L)
-                              + _stirrup_steel_kg(b_m, h_m, L), 2),
+            "steel_kg": round(_long_steel_kg(n_long_bars, phi_long_mm, L) + dist["kg"], 2),
             "status": "PRELIMINARY",
-            "note": "Poutre de liaison entre semelles interieures (non reprises par l'anneau peripherique).",
+            "note": "Poutre de liaison entre semelles interieures. Cadres RPS 2000 (zone critique 2h).",
         })
 
     totals = {
