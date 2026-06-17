@@ -213,12 +213,17 @@ def export_calculation_report_docx(
     table.rows[0].cells[0].text = "Poste"
     table.rows[0].cells[1].text = "Quantité"
 
+    _beams_c = float(totals.get("beams_concrete_m3", 0.0) or 0.0)
+    _tot_c = float(totals.get("concrete_m3", 0.0) or 0.0)
     boq_rows = [
-        ("Béton fondations", f"{fmt(totals.get('concrete_m3'))} m³"),
+        ("Béton semelles", f"{fmt(round(_tot_c - _beams_c, 2))} m³"),
+        ("Béton poutres (chaînage/PR/liaison)", f"{fmt(_beams_c)} m³"),
+        ("Béton total", f"{fmt(_tot_c)} m³"),
         ("Béton de propreté", f"{fmt(totals.get('clean_concrete_m3'))} m³"),
-        ("Coffrage latéral", f"{fmt(totals.get('formwork_m2'))} m²"),
-        ("Acier fondations", f"{fmt(totals.get('foundation_steel_kg'))} kg"),
+        ("Coffrage latéral semelles", f"{fmt(totals.get('formwork_m2'))} m²"),
+        ("Acier semelles", f"{fmt(totals.get('foundation_steel_kg'))} kg"),
         ("Acier attentes", f"{fmt(totals.get('starter_steel_kg'))} kg"),
+        ("Acier poutres", f"{fmt(totals.get('beams_steel_kg'))} kg"),
         ("Acier total", f"{fmt(totals.get('total_steel_kg'))} kg"),
     ]
 
@@ -447,14 +452,19 @@ def export_calculation_report_pdf(
 
     totals = report.get("boq_summary", {})
 
+    _beams_c2 = float(totals.get("beams_concrete_m3", 0.0) or 0.0)
+    _tot_c2 = float(totals.get("concrete_m3", 0.0) or 0.0)
     small_table(
         ["Poste", "Quantité"],
         [
-            ["Béton fondations", f"{fmt(totals.get('concrete_m3'))} m³"],
+            ["Béton semelles", f"{fmt(round(_tot_c2 - _beams_c2, 2))} m³"],
+            ["Béton poutres (chaînage/PR/liaison)", f"{fmt(_beams_c2)} m³"],
+            ["Béton total", f"{fmt(_tot_c2)} m³"],
             ["Béton de propreté", f"{fmt(totals.get('clean_concrete_m3'))} m³"],
-            ["Coffrage latéral", f"{fmt(totals.get('formwork_m2'))} m²"],
-            ["Acier fondations", f"{fmt(totals.get('foundation_steel_kg'))} kg"],
+            ["Coffrage latéral semelles", f"{fmt(totals.get('formwork_m2'))} m²"],
+            ["Acier semelles", f"{fmt(totals.get('foundation_steel_kg'))} kg"],
             ["Acier attentes", f"{fmt(totals.get('starter_steel_kg'))} kg"],
+            ["Acier poutres", f"{fmt(totals.get('beams_steel_kg'))} kg"],
             ["Acier total", f"{fmt(totals.get('total_steel_kg'))} kg"],
         ],
     )

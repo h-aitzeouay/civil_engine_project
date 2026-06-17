@@ -212,11 +212,60 @@ def estimate_starter_steel(
     }
 
 
+def build_beams_boq(
+    model: dict[str, Any],
+    strategy_report: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Metre des poutres de liaison : longrines peripheriques (chainage), poutres
+    de redressement (PR) et poutres de liaison centrales. Retourne les lignes
+    et les totaux beton/acier. Tolerant aux erreurs (retourne 0 si indisponible).
+    """
+    rows: list[dict[str, Any]] = []
+    concrete_m3 = 0.0
+    steel_kg = 0.0
+
+    def _add(items, family):
+        nonlocal concrete_m3, steel_kg
+        for it in items or []:
+            c = float(it.get("concrete_m3", 0.0) or 0.0)
+            s = float(it.get("steel_kg", 0.0) or 0.0)
+            concrete_m3 += c
+            steel_kg += s
+            rows.append({
+                "id": it.get("id"), "family": family,
+                "between": [it.get("footing_a") or it.get("eccentric_footing_id"),
+                            it.get("footing_b") or it.get("anchor_footing_id")],
+                "b_m": it.get("b_m"), "h_m": it.get("h_m"),
+                "length_m": it.get("length_m"),
+                "concrete_m3": round(c, 3), "steel_kg": round(s, 2),
+            })
+
+    try:
+        from civil_engine.foundations.longrines import design_perimeter_ties, design_central_ties
+        from civil_engine.foundations.poutre_redressement import design_strap_beams
+        _add(design_perimeter_ties(model=model, strategy_report=strategy_report).get("ties"),
+             "CHAINAGE")
+        _add(design_strap_beams(model=model, strategy_report=strategy_report).get("strap_beams"),
+             "REDRESSEMENT")
+        _add(design_central_ties(model=model, strategy_report=strategy_report).get("ties"),
+             "LIAISON")
+    except Exception:
+        pass
+
+    return {
+        "rows": rows,
+        "totals": {"concrete_m3": round(concrete_m3, 3), "steel_kg": round(steel_kg, 2),
+                   "count": len(rows)},
+    }
+
+
 def build_foundation_boq(
     strategy_report: dict[str, Any],
     reinforcement_report: dict[str, Any],
     anchorage_report: dict[str, Any],
     clean_concrete_m: float = 0.10,
+    model: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     foundation_rows = []
 
@@ -226,6 +275,8 @@ def build_foundation_boq(
         "formwork_m2": 0.0,
         "foundation_steel_kg": 0.0,
         "starter_steel_kg": 0.0,
+        "beams_concrete_m3": 0.0,
+        "beams_steel_kg": 0.0,
         "total_steel_kg": 0.0,
     }
 
@@ -264,7 +315,18 @@ def build_foundation_boq(
     starters = estimate_starter_steel(anchorage_report)
 
     totals["starter_steel_kg"] = starters["total_weight_kg"]
-    totals["total_steel_kg"] = totals["foundation_steel_kg"] + totals["starter_steel_kg"]
+
+    # Poutres de liaison (chainage / redressement / liaison centrale)
+    beams = {"rows": [], "totals": {"concrete_m3": 0.0, "steel_kg": 0.0, "count": 0}}
+    if model is not None:
+        beams = build_beams_boq(model=model, strategy_report=strategy_report)
+        totals["beams_concrete_m3"] = beams["totals"]["concrete_m3"]
+        totals["beams_steel_kg"] = beams["totals"]["steel_kg"]
+        totals["concrete_m3"] += beams["totals"]["concrete_m3"]
+
+    totals["total_steel_kg"] = (
+        totals["foundation_steel_kg"] + totals["starter_steel_kg"] + totals["beams_steel_kg"]
+    )
 
     for key in totals:
         totals[key] = round(totals[key], 2)
@@ -277,14 +339,17 @@ def build_foundation_boq(
             "steel_weight_rule": "kg/m = phi^2 / 162",
             "formwork_rule": "coffrage lateral = perimetre x H",
             "starter_rule": "longueur attente = Lbd + 1.00 m hors fondation",
+            "beams_rule": "chainage + redressement + liaison centrale (predimensionnement)",
             "note": "Metre estimatif de predimensionnement. A verifier avec plans definitifs.",
         },
         "foundations": foundation_rows,
         "starter_bars": starters,
+        "beams": beams,
         "totals": totals,
         "summary": {
             "foundation_count": len(foundation_rows),
             "starter_rows": len(starters.get("rows", [])),
+            "beams_count": beams["totals"]["count"],
         },
     }
 
@@ -352,6 +417,23 @@ def export_boq_csv(
                 row.get("total_length_m"),
                 row.get("weight_kg"),
             ])
+
+        beams = boq_report.get("beams", {}).get("rows", [])
+        if beams:
+            writer.writerow([])
+            writer.writerow(["POUTRES DE LIAISON (CHAINAGE / REDRESSEMENT / LIAISON)"])
+            writer.writerow([
+                "ID", "FAMILLE", "ENTRE", "b_m", "h_m", "LONG_m",
+                "BETON_m3", "ACIER_kg",
+            ])
+            for row in beams:
+                between = row.get("between", [])
+                writer.writerow([
+                    row.get("id"), row.get("family"),
+                    "-".join(str(x) for x in between if x),
+                    row.get("b_m"), row.get("h_m"), row.get("length_m"),
+                    row.get("concrete_m3"), row.get("steel_kg"),
+                ])
 
         writer.writerow([])
         writer.writerow(["TOTAUX"])

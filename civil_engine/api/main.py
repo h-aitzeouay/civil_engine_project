@@ -1708,6 +1708,7 @@ async def boq_foundations(
                 reinforcement_report=reinforcement_report,
                 anchorage_report=anchorage_report,
                 clean_concrete_m=clean_concrete_m,
+                model=model,
             )
 
             return JSONResponse(report)
@@ -1779,6 +1780,7 @@ async def boq_foundations_csv(
             reinforcement_report=reinforcement_report,
             anchorage_report=anchorage_report,
             clean_concrete_m=clean_concrete_m,
+            model=model,
         )
 
         output_path = temp_path / "METRE_FONDATIONS_INGENIERIE_COM.csv"
@@ -1885,6 +1887,7 @@ async def calculation_report(
                 reinforcement_report=reinforcement_report,
                 anchorage_report=anchorage_report,
                 clean_concrete_m=clean_concrete_m,
+                model=model,
             )
 
             hypotheses = {
@@ -2002,6 +2005,7 @@ async def calculation_report_md(
             reinforcement_report=reinforcement_report,
             anchorage_report=anchorage_report,
             clean_concrete_m=clean_concrete_m,
+            model=model,
         )
 
         hypotheses = {
@@ -2130,6 +2134,7 @@ async def calculation_report_docx(
             reinforcement_report=reinforcement_report,
             anchorage_report=anchorage_report,
             clean_concrete_m=clean_concrete_m,
+            model=model,
         )
 
         hypotheses = {
@@ -2258,6 +2263,7 @@ async def calculation_report_pdf(
             reinforcement_report=reinforcement_report,
             anchorage_report=anchorage_report,
             clean_concrete_m=clean_concrete_m,
+            model=model,
         )
 
         hypotheses = {
@@ -2445,6 +2451,7 @@ async def project_package_zip(
             reinforcement_report=reinforcement_report,
             anchorage_report=anchorage_report,
             clean_concrete_m=clean_concrete_m,
+            model=model,
         )
 
         hypotheses = {
@@ -2598,6 +2605,7 @@ async def project_quality_check(
                 reinforcement_report=reinforcement_report,
                 anchorage_report=anchorage_report,
                 clean_concrete_m=clean_concrete_m,
+                model=model,
             )
 
             report = build_project_quality_check(
@@ -2750,6 +2758,7 @@ async def project_quality_remediation(
                 reinforcement_report=reinforcement_report,
                 anchorage_report=anchorage_report,
                 clean_concrete_m=clean_concrete_m,
+                model=model,
             )
 
             quality_report = build_project_quality_check(
@@ -2917,6 +2926,7 @@ async def project_dashboard(
                 reinforcement_report=reinforcement_report,
                 anchorage_report=anchorage_report,
                 clean_concrete_m=clean_concrete_m,
+                model=model,
             )
 
             quality_report = build_project_quality_check(
@@ -3080,6 +3090,7 @@ async def project_summary_report_docx(
             reinforcement_report=reinforcement_report,
             anchorage_report=anchorage_report,
             clean_concrete_m=clean_concrete_m,
+            model=model,
         )
 
         quality_report = build_project_quality_check(
@@ -3254,6 +3265,7 @@ async def project_summary_report_pdf(
             reinforcement_report=reinforcement_report,
             anchorage_report=anchorage_report,
             clean_concrete_m=clean_concrete_m,
+            model=model,
         )
 
         quality_report = build_project_quality_check(

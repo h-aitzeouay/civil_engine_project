@@ -380,15 +380,21 @@ def export_calculation_report_md(
     lines.append("")
 
     totals = report.get("boq_summary", {})
+    beams_concrete = float(totals.get("beams_concrete_m3", 0.0) or 0.0)
+    total_concrete = float(totals.get("concrete_m3", 0.0) or 0.0)
+    footing_concrete = round(total_concrete - beams_concrete, 2)
 
     lines.append(markdown_table(
         ["Poste", "Quantité"],
         [
-            ["Béton fondations", f"{fmt(totals.get('concrete_m3'))} m³"],
+            ["Béton semelles", f"{fmt(footing_concrete)} m³"],
+            ["Béton poutres (chaînage/PR/liaison)", f"{fmt(beams_concrete)} m³"],
+            ["Béton total", f"{fmt(total_concrete)} m³"],
             ["Béton de propreté", f"{fmt(totals.get('clean_concrete_m3'))} m³"],
-            ["Coffrage latéral", f"{fmt(totals.get('formwork_m2'))} m²"],
-            ["Acier fondations", f"{fmt(totals.get('foundation_steel_kg'))} kg"],
+            ["Coffrage latéral semelles", f"{fmt(totals.get('formwork_m2'))} m²"],
+            ["Acier semelles", f"{fmt(totals.get('foundation_steel_kg'))} kg"],
             ["Acier attentes", f"{fmt(totals.get('starter_steel_kg'))} kg"],
+            ["Acier poutres", f"{fmt(totals.get('beams_steel_kg'))} kg"],
             ["Acier total", f"{fmt(totals.get('total_steel_kg'))} kg"],
         ],
     ))
