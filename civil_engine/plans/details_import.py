@@ -26,7 +26,7 @@ def place_standard_details(
     x_left: float,
     y_top: float,
     target_width: float = 26.0,
-    title: str = "D5 - DETAILS TYPES COMPLEMENTAIRES",
+    title: str = "D4 - DETAILS TYPES COMPLEMENTAIRES",
     title_layer: str = "DETAILS_TITRES",
 ) -> bool:
     """

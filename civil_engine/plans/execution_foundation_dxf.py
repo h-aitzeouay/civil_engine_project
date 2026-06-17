@@ -859,7 +859,7 @@ def draw_beam_sections_panel(msp, x, y, beams):
     if not beams:
         return
     w, h = 14.0, 3.6
-    draw_panel(msp, "D4 - COUPES TYPES POUTRES (CHAINAGE / REDRESSEMENT / LIAISON)",
+    draw_panel(msp, "D3 - COUPES TYPES POUTRES (CHAINAGE / REDRESSEMENT / LIAISON)",
                x, y, w, h, "DETAILS_TITRES")
     px = x + 1.10
     py = y + 1.30
@@ -1142,14 +1142,7 @@ def generate_execution_foundation_dxf(
         details_y - 5.60,
     )
 
-    draw_sections_panel(
-        msp,
-        strategy_report,
-        details_x,
-        details_y - 11.20,
-        strip_design=strip_design,
-        wall_thickness_m=strip_wall_thickness_m,
-    )
+    # (Panneau D3 "Sections types de ferraillage" retire a la demande.)
 
     # Coupes types des poutres (chainage / PR / liaison) : un panneau dedie.
     beams_sections = []
@@ -1166,7 +1159,7 @@ def generate_execution_foundation_dxf(
             c = central_tie_design["ties"][0]
             beams_sections.append({"title": f"Liaison centrale {c['id']}", "b": c["b_m"], "h": c["h_m"],
                                    "top": "2HA14", "bot": "2HA14", "stirrup": "HA8 e=15"})
-        draw_beam_sections_panel(msp, details_x, details_y - 16.40, beams_sections)
+        draw_beam_sections_panel(msp, details_x, details_y - 11.20, beams_sections)
     except Exception:
         pass
 
@@ -1174,7 +1167,7 @@ def generate_execution_foundation_dxf(
     # chainage, ferraillage escalier...) depuis le gabarit details_standards.dxf.
     try:
         from civil_engine.plans.details_import import place_standard_details
-        place_standard_details(doc, x_left=details_x, y_top=details_y - 21.00,
+        place_standard_details(doc, x_left=details_x, y_top=details_y - 15.80,
                                target_width=26.0)
     except Exception:
         pass
