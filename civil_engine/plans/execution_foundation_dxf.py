@@ -1138,6 +1138,15 @@ def generate_execution_foundation_dxf(
     except Exception:
         pass
 
+    # Details types complementaires importes (poteau, semelle, coupes poutres,
+    # chainage, ferraillage escalier...) depuis le gabarit details_standards.dxf.
+    try:
+        from civil_engine.plans.details_import import place_standard_details
+        place_standard_details(doc, x_left=details_x, y_top=details_y - 21.00,
+                               target_width=26.0)
+    except Exception:
+        pass
+
     cart_values = build_cartouche_values(
         project_name=project_name,
         project_number=project_number,
