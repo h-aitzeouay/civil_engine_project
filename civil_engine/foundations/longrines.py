@@ -28,6 +28,19 @@ def _bar_area_cm2(diameter_mm: float, count: int) -> float:
     return round(count * PI * (diameter_mm / 10.0) ** 2 / 4.0, 3)
 
 
+def _long_steel_kg(n_bars: int, phi_mm: float, length_m: float) -> float:
+    return round(n_bars * (phi_mm / 1000.0) ** 2 * PI / 4.0 * length_m * 7850.0, 2)
+
+
+def _stirrup_steel_kg(b_m: float, h_m: float, length_m: float, cover_m: float = 0.04,
+                      phi_stirrup_mm: float = 8.0, spacing_m: float = 0.15) -> float:
+    """Acier des cadres : perimetre x nombre de cadres x poids unitaire."""
+    perim = 2.0 * ((b_m - 2 * cover_m) + (h_m - 2 * cover_m)) + 0.20
+    n = max(int(length_m / spacing_m) + 1, 2)
+    unit_kg_m = (phi_stirrup_mm / 1000.0) ** 2 * PI / 4.0 * 7850.0
+    return round(n * perim * unit_kg_m, 2)
+
+
 def design_perimeter_ties(
     model: dict[str, Any],
     strategy_report: dict[str, Any],
@@ -111,8 +124,8 @@ def design_perimeter_ties(
                 "bars_long": bars_label,
                 "stirrups": "HA8 e=15 cm",
                 "concrete_m3": round(b_m * h_m * L, 3),
-                "steel_kg": round(n_long_bars * (phi_long_mm / 1000.0) ** 2 * PI / 4.0
-                                  * L * 7850.0, 2),
+                "steel_kg": round(_long_steel_kg(n_long_bars, phi_long_mm, L)
+                                  + _stirrup_steel_kg(b_m, h_m, L), 2),
                 "status": "PRELIMINARY",
                 "note": "Longrine de liaison peripherique (chainage). Section/ferraillage minimaux a verifier (RPS 2000).",
             })
@@ -222,8 +235,8 @@ def design_central_ties(
             "bars_long": bars_label,
             "stirrups": "HA8 e=15 cm",
             "concrete_m3": round(b_m * h_m * L, 3),
-            "steel_kg": round(n_long_bars * (phi_long_mm / 1000.0) ** 2 * PI / 4.0
-                              * L * 7850.0, 2),
+            "steel_kg": round(_long_steel_kg(n_long_bars, phi_long_mm, L)
+                              + _stirrup_steel_kg(b_m, h_m, L), 2),
             "status": "PRELIMINARY",
             "note": "Poutre de liaison entre semelles interieures (non reprises par l'anneau peripherique).",
         })

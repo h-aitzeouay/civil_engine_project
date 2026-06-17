@@ -27,7 +27,16 @@ def _bar_area_cm2(diameter_mm: float, count: int) -> float:
     return round(count * PI * (diameter_mm / 10.0) ** 2 / 4.0, 3)
 
 
-def _select_bars(as_required_cm2: float, candidates_mm=(12, 14, 16, 20, 25),
+def _stirrup_steel_kg(b_m: float, h_m: float, length_m: float, cover_m: float = 0.05,
+                      phi_stirrup_mm: float = 8.0, spacing_m: float = 0.15) -> float:
+    """Acier des cadres : perimetre d'un cadre x nombre de cadres x poids unitaire."""
+    perim = 2.0 * ((b_m - 2 * cover_m) + (h_m - 2 * cover_m)) + 0.20  # + crochets approx
+    n = max(int(length_m / spacing_m) + 1, 2)
+    unit_kg_m = (phi_stirrup_mm / 1000.0) ** 2 * PI / 4.0 * 7850.0
+    return round(n * perim * unit_kg_m, 2)
+
+
+def _select_bars(as_required_cm2: float, candidates_mm=(12, 14, 16),
                  min_count: int = 2, max_count: int = 6) -> dict[str, Any]:
     """
     Choisit (nombre, diametre) en privilegiant le MOINS de barres possible
@@ -65,7 +74,7 @@ def design_strap_beams(
     gamma_s: float = 1.15,
     cover_m: float = 0.05,
     default_width_m: float = 0.30,
-    min_height_m: float = 0.40,
+    min_height_m: float = 0.50,
     gamma_g_estimate: float = 1.35,
     gamma_concrete_kN_m3: float = 25.0,
 ) -> dict[str, Any]:
@@ -160,9 +169,10 @@ def design_strap_beams(
         b = max(float(col.get("bx", default_width_m) or default_width_m), default_width_m)
         b = round(round_up(b, 0.05), 3)
 
-        # Hauteur : poutre rigide ~ L/10, puis on l'augmente tant que le taux
-        # d'acier reste excessif (cible rho <= 1.5 %), plafond a 1.00 m.
-        h = max(min_height_m, round_up(L / 10.0, 0.05))
+        # Hauteur : poutre de redressement RIGIDE ~ L/8 (plus haute = moins
+        # d'acier), puis on l'augmente si le taux d'acier reste excessif
+        # (cible rho <= 1.0 %), plafond a 1.00 m.
+        h = max(min_height_m, round_up(L / 8.0, 0.05))
         h_cap = 1.00
         as_req_cm2 = 0.0
         d_eff = h - cover_m - 0.012
@@ -171,7 +181,7 @@ def design_strap_beams(
             z = 0.9 * d_eff
             as_req_cm2 = (M_ed * 1e3) / (z * fyd * 1e2) if z > 0 else 0.0
             rho = as_req_cm2 / (b * d_eff * 1e4) if d_eff > 0 else 1.0
-            if rho <= 0.015 or h >= h_cap:
+            if rho <= 0.010 or h >= h_cap:
                 break
             h = round(h + 0.05, 3)
         h = round(min(h, h_cap), 3)
@@ -183,12 +193,14 @@ def design_strap_beams(
         top = _select_bars(as_design)
         bottom = _select_bars(as_min_cm2)  # nappe inferieure = mini constructif
 
-        # Metre
+        # Metre (aciers longitudinaux + cadres)
         concrete_m3 = round(b * h * L, 3)
-        steel_kg = round(
+        long_kg = round(
             (top["count"] * (top["diameter_mm"] / 1000.0) ** 2 * PI / 4.0
              + bottom["count"] * (bottom["diameter_mm"] / 1000.0) ** 2 * PI / 4.0)
             * L * 7850.0, 2)
+        stirrup_kg = _stirrup_steel_kg(b, h, L, cover_m=cover_m, phi_stirrup_mm=8.0, spacing_m=0.15)
+        steel_kg = round(long_kg + stirrup_kg, 2)
 
         counter += 1
         beams.append({
@@ -212,6 +224,8 @@ def design_strap_beams(
             "bars_bottom": bottom["label"],
             "As_bottom_cm2": bottom["As_cm2"],
             "stirrups": "HA8 e=15 cm",
+            "long_steel_kg": long_kg,
+            "stirrup_steel_kg": stirrup_kg,
             "concrete_m3": concrete_m3,
             "steel_kg": steel_kg,
             "status": "PRELIMINARY",
